@@ -72,7 +72,7 @@ export default function ScheduleCharts({ categories }: Props) {
                             <YAxis tick={{ fontSize: 11, fill: "#6b7280" }} allowDecimals={false} />
                             <Tooltip
                                 contentStyle={{ borderRadius: 12, border: "1px solid #e5e7eb", fontSize: 13 }}
-                                formatter={(v) => [(v as number).toLocaleString(), "Elements"]}
+                                formatter={(v, _name, props) => [(v as number).toLocaleString(), props.payload?.name ?? "Elements"]}
                             />
                             <Bar dataKey="count" radius={[6, 6, 0, 0]} maxBarSize={56}>
                                 {data.map((entry, i) => (
@@ -109,7 +109,7 @@ export default function ScheduleCharts({ categories }: Props) {
                             </Pie>
                             <Tooltip
                                 contentStyle={{ borderRadius: 12, border: "1px solid #e5e7eb", fontSize: 13 }}
-                                formatter={(v) => [(v as number).toLocaleString(), "Elements"]}
+                                formatter={(v, name) => [(v as number).toLocaleString(), name as string]}
                             />
                             <Legend
                                 iconType="circle"
