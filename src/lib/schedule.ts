@@ -241,18 +241,28 @@ export function buildCategorySummary(
 
     if (!isSupportedCategory(category)) { unknownCount++; continue; }
 
-    // APS doesn't expose a "Family" property for system families (Pipes, Ducts, Walls, etc.)
-    // Fall back to the element name stripped of the Revit object ID suffix [12345]
-    const elementBaseName = element.name
+    // APS element names follow "FamilyName : TypeName [ObjectID]" or "FamilyName [ObjectID]"
+    // Parse both parts from the name as fallbacks when APS doesn't expose explicit properties.
+    const strippedName = element.name
       ? cleanText(element.name).replace(/\s*\[\d+\]$/, "").trim()
       : null;
+    const nameFamily = strippedName?.includes(" : ")
+      ? strippedName.split(" : ")[0].trim()
+      : strippedName;
+    const nameType = strippedName?.includes(" : ")
+      ? strippedName.split(" : ").slice(1).join(" : ").trim()
+      : null;
+
     const family =
       findFlatProperty(flat, [
-        "Family","Family Name","Family and Type",
-        "LcRevitData.Family","Item.Family","族",
+        "Family","Family Name","LcRevitData.Family","Item.Family","族",
         "Object Name","Assembly Description",
-      ]) || elementBaseName || "Unknown Family";
-    const type = findFlatProperty(flat, ["Type","Type Name","Family and Type","LcRevitData.Type","Item.Type","Name","类型"]) || element.name || "Unknown Type";
+      ]) || nameFamily || "Unknown Family";
+    const type =
+      findFlatProperty(flat, ["Type","Type Name","LcRevitData.Type","Item.Type","类型"])
+      || nameType
+      || element.name
+      || "Unknown Type";
     const level = findFlatProperty(flat, ["Level","Base Level","Reference Level","Schedule Level","LcRevitData.Level","Item.Level","标高"]) || "Unknown Level";
 
     if (!categoryMap[category]) {
