@@ -1,0 +1,352 @@
+"use client";
+
+import React, { useEffect, useState, useRef, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ScheduleResult, ChatMessage } from "@/types/schedule";
+
+function ScheduleContent() {
+  const router = useRouter();
+  const params = useSearchParams();
+  const projectId = params.get("projectId") ?? "";
+  const modelUrn = params.get("modelUrn") ?? "";
+  const modelName = params.get("name") ?? "Model";
+
+  const [schedule, setSchedule] = useState<ScheduleResult | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [genError, setGenError] = useState<string | null>(null);
+
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  const [exportLoading, setExportLoading] = useState<"xlsx" | "csv" | null>(null);
+  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!projectId || !modelUrn) { router.push("/dashboard"); return; }
+    generateSchedule();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  async function generateSchedule() {
+    setGenerating(true);
+    setGenError(null);
+    try {
+      const res = await fetch("/api/schedule/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId, modelUrn }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      setSchedule(await res.json());
+    } catch (e: any) {
+      setGenError(e.message || "Failed to generate schedule");
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  async function sendChat() {
+    if (!chatInput.trim() || !schedule || chatLoading) return;
+    const userMsg: ChatMessage = { role: "user", content: chatInput.trim() };
+    setMessages(prev => [...prev, userMsg]);
+    setChatInput("");
+    setChatLoading(true);
+
+    const assistantMsg: ChatMessage = { role: "assistant", content: "" };
+    setMessages(prev => [...prev, assistantMsg]);
+
+    try {
+      const res = await fetch("/api/schedule/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: [...messages, userMsg], schedule }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+
+      const reader = res.body!.getReader();
+      const decoder = new TextDecoder();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value);
+        setMessages(prev => {
+          const updated = [...prev];
+          updated[updated.length - 1] = { role: "assistant", content: updated[updated.length - 1].content + chunk };
+          return updated;
+        });
+      }
+    } catch (e: any) {
+      setMessages(prev => {
+        const updated = [...prev];
+        updated[updated.length - 1] = { role: "assistant", content: "Error: " + (e.message || "Chat failed") };
+        return updated;
+      });
+    } finally {
+      setChatLoading(false);
+    }
+  }
+
+  async function exportSchedule(format: "xlsx" | "csv") {
+    if (!schedule) return;
+    setExportLoading(format);
+    try {
+      const res = await fetch("/api/schedule/export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ schedule, format }),
+      });
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `forma-ai-schedule.${format}`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExportLoading(null);
+    }
+  }
+
+  return (
+    <div className="flex flex-col min-h-screen">
+      {/* Header */}
+      <header className="bg-blue-900 text-white px-6 py-4 flex items-center justify-between shadow">
+        <div className="flex items-center gap-3">
+          <button onClick={() => router.push("/dashboard")} className="text-blue-200 hover:text-white mr-1">
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+            </svg>
+          </button>
+          <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6z" />
+          </svg>
+          <div>
+            <p className="font-semibold text-base leading-tight">Forma AI Schedule</p>
+            <p className="text-blue-300 text-xs truncate max-w-xs">{modelName}</p>
+          </div>
+        </div>
+        <a href="/api/auth/logout" className="text-sm text-blue-200 hover:text-white">Sign out</a>
+      </header>
+
+      <div className="flex flex-1 overflow-hidden">
+        {/* Schedule panel */}
+        <main className="flex-1 overflow-y-auto p-6">
+          {generating && (
+            <div className="flex flex-col items-center justify-center h-64 gap-4 text-gray-500">
+              <div className="h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+              <p className="text-sm">Scanning model elements and generating schedule…</p>
+            </div>
+          )}
+
+          {genError && (
+            <div className="rounded-xl bg-red-50 border border-red-200 px-5 py-4 text-sm text-red-700 mb-6">
+              <p className="font-medium mb-1">Failed to generate schedule</p>
+              <p className="text-red-500">{genError}</p>
+              <button onClick={generateSchedule} className="mt-3 rounded-lg bg-red-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-red-700">
+                Retry
+              </button>
+            </div>
+          )}
+
+          {schedule && !generating && (
+            <>
+              {/* Stats row */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+                {[
+                  { label: "Elements Scanned", value: schedule.totalElementsScanned.toLocaleString() },
+                  { label: "Categorized", value: schedule.totalCategorizedElements.toLocaleString() },
+                  { label: "Categories Found", value: schedule.totalCategoriesFound },
+                  { label: "Uncategorized", value: schedule.uncategorizedElements.toLocaleString() },
+                ].map(s => (
+                  <div key={s.label} className="rounded-xl bg-white border border-gray-200 px-4 py-3">
+                    <p className="text-2xl font-bold text-blue-900">{s.value}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{s.label}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* AI Summary */}
+              {schedule.aiSummary && (
+                <div className="rounded-xl bg-blue-50 border border-blue-200 px-5 py-4 mb-6">
+                  <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-2">AI Summary</p>
+                  <p className="text-sm text-blue-900 leading-relaxed">{schedule.aiSummary}</p>
+                </div>
+              )}
+
+              {/* Export buttons */}
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-base font-semibold text-gray-900">Category Schedule</h2>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => exportSchedule("xlsx")}
+                    disabled={!!exportLoading}
+                    className="flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    {exportLoading === "xlsx" ? <span className="h-3 w-3 border border-gray-400 border-t-transparent rounded-full animate-spin" /> : "⬇"}
+                    Excel
+                  </button>
+                  <button
+                    onClick={() => exportSchedule("csv")}
+                    disabled={!!exportLoading}
+                    className="flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    {exportLoading === "csv" ? <span className="h-3 w-3 border border-gray-400 border-t-transparent rounded-full animate-spin" /> : "⬇"}
+                    CSV
+                  </button>
+                  <button
+                    onClick={generateSchedule}
+                    className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
+                  >
+                    Refresh
+                  </button>
+                </div>
+              </div>
+
+              {/* Table */}
+              <div className="rounded-xl border border-gray-200 overflow-x-auto bg-white">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs w-10">#</th>
+                      <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs">Category</th>
+                      <th className="text-right px-4 py-3 font-semibold text-gray-600 text-xs w-20">Count</th>
+                      <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs">Families</th>
+                      <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs">Types</th>
+                      <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs">Level(s)</th>
+                      <th className="w-8" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {schedule.categories.map((row, i) => {
+                      const isExpanded = expandedCategory === row.category;
+                      return (
+                        <React.Fragment key={row.category}>
+                          <tr
+                            key={row.category}
+                            onClick={() => setExpandedCategory(isExpanded ? null : row.category)}
+                            className="hover:bg-blue-50 transition-colors cursor-pointer select-none"
+                          >
+                            <td className="px-4 py-2.5 text-gray-400 text-xs">{i + 1}</td>
+                            <td className="px-4 py-2.5 font-medium text-gray-900">{row.category}</td>
+                            <td className="px-4 py-2.5 text-right font-semibold text-blue-700">{row.count.toLocaleString()}</td>
+                            <td className="px-4 py-2.5 text-gray-500 text-xs max-w-xs truncate">{row.families}</td>
+                            <td className="px-4 py-2.5 text-gray-500 text-xs max-w-xs truncate">{row.types}</td>
+                            <td className="px-4 py-2.5 text-gray-500 text-xs">{row.levels}</td>
+                            <td className="px-3 py-2.5 text-gray-400">
+                              <svg className={`h-4 w-4 transition-transform ${isExpanded ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </td>
+                          </tr>
+                          {isExpanded && (
+                            <tr key={`${row.category}-expanded`}>
+                              <td colSpan={7} className="p-0 bg-blue-50 border-b border-blue-100">
+                                <div className="px-6 py-3">
+                                  <p className="text-xs font-semibold text-blue-700 mb-2">
+                                    Elements in {row.category}
+                                    {row.count > 200 && <span className="text-blue-400 font-normal ml-1">(showing first 200 of {row.count.toLocaleString()})</span>}
+                                  </p>
+                                  <div className="overflow-x-auto rounded-lg border border-blue-200 bg-white">
+                                    <table className="w-full text-xs">
+                                      <thead>
+                                        <tr className="bg-blue-100 border-b border-blue-200">
+                                          <th className="text-left px-3 py-2 font-semibold text-blue-700 w-8">#</th>
+                                          <th className="text-left px-3 py-2 font-semibold text-blue-700">Name</th>
+                                          <th className="text-left px-3 py-2 font-semibold text-blue-700">Family</th>
+                                          <th className="text-left px-3 py-2 font-semibold text-blue-700">Type</th>
+                                          <th className="text-left px-3 py-2 font-semibold text-blue-700">Level</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-blue-50">
+                                        {row.elements.map((el, j) => (
+                                          <tr key={el.id || j} className="hover:bg-blue-50 transition-colors">
+                                            <td className="px-3 py-1.5 text-gray-400">{j + 1}</td>
+                                            <td className="px-3 py-1.5 text-gray-800 font-medium max-w-xs truncate">{el.name}</td>
+                                            <td className="px-3 py-1.5 text-gray-500 max-w-xs truncate">{el.family}</td>
+                                            <td className="px-3 py-1.5 text-gray-500 max-w-xs truncate">{el.type}</td>
+                                            <td className="px-3 py-1.5 text-gray-500">{el.level}</td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
+                    {schedule.categories.length === 0 && (
+                      <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400 text-sm">No supported Revit categories found in this model</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </main>
+
+        {/* AI Chat panel */}
+        <aside className="w-80 border-l border-gray-200 bg-white flex flex-col">
+          <div className="px-4 py-3 border-b border-gray-100">
+            <p className="text-sm font-semibold text-gray-900">Ask AI about this model</p>
+            <p className="text-xs text-gray-400 mt-0.5">Powered by Gemini</p>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            {messages.length === 0 && (
+              <div className="text-xs text-gray-400 text-center py-8">
+                Ask anything about the model schedule — element counts, categories, levels, and more.
+              </div>
+            )}
+            {messages.map((msg, i) => (
+              <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                <div className={`max-w-[90%] rounded-xl px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap ${
+                  msg.role === "user" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-800"
+                }`}>
+                  {msg.content || (chatLoading && i === messages.length - 1 ? <span className="animate-pulse">…</span> : "")}
+                </div>
+              </div>
+            ))}
+            <div ref={chatEndRef} />
+          </div>
+
+          <div className="p-3 border-t border-gray-100">
+            <div className="flex gap-2">
+              <input
+                className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder={schedule ? "Ask about this model…" : "Generate schedule first…"}
+                value={chatInput}
+                disabled={!schedule || chatLoading}
+                onChange={e => setChatInput(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChat(); } }}
+              />
+              <button
+                onClick={sendChat}
+                disabled={!schedule || chatLoading || !chatInput.trim()}
+                className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-40 transition-colors"
+              >
+                Send
+              </button>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  );
+}
+
+export default function SchedulePage() {
+  return (
+    <Suspense>
+      <ScheduleContent />
+    </Suspense>
+  );
+}
