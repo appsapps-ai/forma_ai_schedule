@@ -211,7 +211,11 @@ export default function DashboardPage() {
                       <p className="text-base text-gray-400">This folder is empty</p>
                     </div>
                   ) : items.map(item => (
-                    <div key={item.id} className="flex items-center gap-4 px-6 py-4 border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors">
+                    <div
+                      key={item.id}
+                      onClick={() => item.type === "Folder" ? openFolder(item) : undefined}
+                      className={`flex items-center gap-4 px-6 py-4 border-b border-gray-100 last:border-0 transition-colors ${item.type === "Folder" ? "hover:bg-gray-50 cursor-pointer" : ""}`}
+                    >
                       {item.type === "Folder" ? (
                         <svg className="h-6 w-6 text-amber-400 shrink-0" fill="currentColor" viewBox="0 0 20 20">
                           <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
@@ -222,14 +226,6 @@ export default function DashboardPage() {
                         </svg>
                       )}
                       <span className="text-base text-gray-800 flex-1 truncate font-medium">{item.name}</span>
-                      {item.type === "Folder" && (
-                        <button
-                          onClick={() => openFolder(item)}
-                          className="text-sm text-blue-600 hover:text-blue-700 font-semibold shrink-0"
-                        >
-                          Open →
-                        </button>
-                      )}
                       {item.type === "File" && item.modelUrn && (
                         <button
                           onClick={() => openSchedule(item)}
