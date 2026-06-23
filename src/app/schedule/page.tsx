@@ -268,20 +268,16 @@ function ScheduleContent() {
                             lastCategory = r.category;
                             rowNum++;
                             return (
-                              <React.Fragment key={i}>
-                                {isNewCategory && (
-                                  <tr className="bg-blue-50 border-t-2 border-blue-100">
-                                    <td colSpan={5} className="px-5 py-2 text-sm font-bold text-blue-700">{r.category}</td>
-                                  </tr>
-                                )}
-                                <tr className="hover:bg-gray-50 transition-colors">
-                                  <td className="px-5 py-3 text-gray-300 text-xs">{rowNum}</td>
-                                  <td className="px-5 py-3 text-gray-400 text-sm"></td>
-                                  <td className="px-5 py-3 text-gray-700 text-sm">{r.family}</td>
-                                  <td className="px-5 py-3 text-gray-700 text-sm">{r.type}</td>
-                                  <td className="px-5 py-3 text-right font-bold text-blue-600 text-sm">{r.instances.toLocaleString()}</td>
-                                </tr>
-                              </React.Fragment>
+                              <tr
+                                key={i}
+                                className={`hover:bg-blue-50 transition-colors ${isNewCategory && i > 0 ? "border-t-2 border-gray-200" : ""}`}
+                              >
+                                <td className="px-5 py-3 text-gray-400 text-sm">{rowNum}</td>
+                                <td className="px-5 py-3 text-sm font-semibold text-gray-900">{isNewCategory ? r.category : ""}</td>
+                                <td className="px-5 py-3 text-sm text-gray-700">{r.family}</td>
+                                <td className="px-5 py-3 text-sm text-gray-500">{r.type}</td>
+                                <td className="px-5 py-3 text-right font-bold text-blue-600 text-sm">{r.instances.toLocaleString()}</td>
+                              </tr>
                             );
                           })}
                           {rows.length === 0 && (
