@@ -3,6 +3,9 @@
 import React, { useEffect, useState, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ScheduleResult, ChatMessage } from "@/types/schedule";
+import dynamic from "next/dynamic";
+
+const ScheduleCharts = dynamic(() => import("@/components/ScheduleCharts"), { ssr: false });
 
 function ScheduleContent() {
   const router = useRouter();
@@ -241,6 +244,9 @@ function ScheduleContent() {
                   </button>
                 </div>
               </div>
+
+              {/* Charts */}
+              <ScheduleCharts categories={schedule.categories} />
 
               {/* Table */}
               {(() => {
