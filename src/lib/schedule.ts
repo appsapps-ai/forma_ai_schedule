@@ -246,31 +246,33 @@ export function buildCategorySummary(
     const strippedName = element.name
       ? cleanText(element.name).replace(/\s*\[\d+\]$/, "").trim()
       : null;
-    const nameFamily = strippedName?.includes(" : ")
+
+    // Skip phantom/metadata nodes that have no meaningful name
+    if (!strippedName) { unknownCount++; continue; }
+
+    const nameFamily = strippedName.includes(" : ")
       ? strippedName.split(" : ")[0].trim()
       : strippedName;
-    const nameType = strippedName?.includes(" : ")
+    const nameType = strippedName.includes(" : ")
       ? strippedName.split(" : ").slice(1).join(" : ").trim()
       : null;
+
+    const typeFromProps = findFlatProperty(flat, ["Type","Type Name","LcRevitData.Type","Item.Type","类型"]);
 
     const family =
       findFlatProperty(flat, [
         "Family","Family Name","LcRevitData.Family","Item.Family","族",
         "Object Name","Assembly Description",
-      ]) || nameFamily || "Unknown Family";
-    const type =
-      findFlatProperty(flat, ["Type","Type Name","LcRevitData.Type","Item.Type","类型"])
-      || nameType
-      || element.name
-      || "Unknown Type";
+      ]) || nameFamily;
+    const type = typeFromProps || nameType || nameFamily;
     const level = findFlatProperty(flat, ["Level","Base Level","Reference Level","Schedule Level","LcRevitData.Level","Item.Level","标高"]) || "Unknown Level";
 
     if (!categoryMap[category]) {
       categoryMap[category] = { category, count: 0, families: new Set(), types: new Set(), levels: new Set(), examples: new Set(), elements: [] };
     }
     categoryMap[category].count++;
-    if (family !== "Unknown Family") categoryMap[category].families.add(cleanText(family));
-    if (type !== "Unknown Type") categoryMap[category].types.add(cleanText(type));
+    if (family) categoryMap[category].families.add(cleanText(family));
+    if (type) categoryMap[category].types.add(cleanText(type));
     if (level !== "Unknown Level") categoryMap[category].levels.add(cleanText(level));
     if (element.name) categoryMap[category].examples.add(cleanText(element.name));
     if (categoryMap[category].elements.length < 200) {
@@ -300,8 +302,8 @@ export function buildCategorySummary(
   const ftMap: Record<string, ScheduleRow> = {};
   for (const item of Object.values(categoryMap)) {
     for (const el of item.elements) {
-      const family = el.family && el.family !== "—" ? el.family : item.category;
-      const type = el.type && el.type !== "—" ? el.type : "-";
+      const family = el.family && el.family !== "—" ? el.family : item.category + " (Unknown)";
+      const type = el.type && el.type !== "—" ? el.type : "Standard";
       const key = `${item.category}||${family}||${type}`;
       if (!ftMap[key]) ftMap[key] = { category: item.category, family, type, instances: 0 };
       ftMap[key].instances++;
