@@ -96,7 +96,14 @@ export default function DashboardPage() {
 
   function openSchedule(item: FolderItem) {
     if (!item.modelUrn || !selectedProject) return;
-    const params = new URLSearchParams({ projectId: selectedProject.id, modelUrn: item.modelUrn, name: item.name });
+    const currentFolderId = breadcrumbs[breadcrumbs.length - 1]?.folderId ?? "";
+    const params = new URLSearchParams({
+      projectId: selectedProject.id,
+      modelUrn: item.modelUrn,
+      name: item.name,
+      hubId: selectedHub?.id ?? "",
+      folderId: currentFolderId,
+    });
     router.push(`/schedule?${params}`);
   }
 

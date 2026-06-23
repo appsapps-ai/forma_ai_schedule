@@ -126,7 +126,7 @@ function ScheduleContent() {
       <header className="border-b border-gray-200 px-8 py-5 flex items-center justify-between bg-white">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => router.push("/dashboard")}
+            onClick={() => router.back()}
             className="rounded-xl p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors mr-1"
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
