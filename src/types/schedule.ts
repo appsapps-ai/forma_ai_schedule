@@ -16,6 +16,13 @@ export interface CategoryRow {
   elements: ElementRow[];
 }
 
+export interface ScheduleRow {
+  category: string;
+  family: string;
+  type: string;
+  instances: number;
+}
+
 export interface ScheduleResult {
   projectId: string;
   modelUrn: string;
@@ -24,6 +31,7 @@ export interface ScheduleResult {
   totalCategoriesFound: number;
   uncategorizedElements: number;
   categories: CategoryRow[];
+  scheduleRows: ScheduleRow[];
   aiSummary?: string;
 }
 

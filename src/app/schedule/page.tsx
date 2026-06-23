@@ -198,24 +198,20 @@ function ScheduleContent() {
 
               {/* Toolbar: search + export */}
               <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
-                <h2 className="text-base font-semibold text-gray-900 shrink-0">Category Schedule</h2>
-                {/* Search */}
+                <h2 className="text-base font-semibold text-gray-900 shrink-0">Element Schedule</h2>
                 <div className="relative flex-1">
                   <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803a7.5 7.5 0 0010.607 0z" />
                   </svg>
                   <input
                     type="text"
-                    placeholder="Search categories or elements…"
+                    placeholder="Search category, family or type…"
                     value={search}
                     onChange={e => setSearch(e.target.value)}
                     className="w-full rounded-xl border border-gray-200 bg-gray-50 pl-9 pr-9 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                   {search && (
-                    <button
-                      onClick={() => setSearch("")}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
+                    <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                       </svg>
@@ -223,138 +219,73 @@ function ScheduleContent() {
                   )}
                 </div>
                 <div className="flex gap-2 shrink-0">
-                  <button
-                    onClick={() => exportSchedule("xlsx")}
-                    disabled={!!exportLoading}
-                    className="flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    {exportLoading === "xlsx" ? <span className="h-3 w-3 border border-gray-400 border-t-transparent rounded-full animate-spin" /> : "⬇"}
-                    Excel
+                  <button onClick={() => exportSchedule("xlsx")} disabled={!!exportLoading}
+                    className="flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+                    {exportLoading === "xlsx" ? <span className="h-3 w-3 border border-gray-400 border-t-transparent rounded-full animate-spin" /> : "⬇"} Excel
                   </button>
-                  <button
-                    onClick={() => exportSchedule("csv")}
-                    disabled={!!exportLoading}
-                    className="flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    {exportLoading === "csv" ? <span className="h-3 w-3 border border-gray-400 border-t-transparent rounded-full animate-spin" /> : "⬇"}
-                    CSV
+                  <button onClick={() => exportSchedule("csv")} disabled={!!exportLoading}
+                    className="flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+                    {exportLoading === "csv" ? <span className="h-3 w-3 border border-gray-400 border-t-transparent rounded-full animate-spin" /> : "⬇"} CSV
                   </button>
-                  <button
-                    onClick={generateSchedule}
-                    className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
-                  >
+                  <button onClick={generateSchedule}
+                    className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700">
                     Refresh
                   </button>
                 </div>
               </div>
 
-              {/* Table */}
+              {/* Schedule table: Category / Family / Type / Instance */}
               {(() => {
                 const q = search.trim().toLowerCase();
-                const filtered = schedule.categories
-                  .map(row => {
-                    if (!q) return { row, matchedElements: row.elements, categoryMatch: true };
-                    const categoryMatch = [row.category, row.families, row.types, row.levels]
-                      .some(v => v.toLowerCase().includes(q));
-                    const matchedElements = row.elements.filter(el =>
-                      [el.name, el.family, el.type, el.level].some(v => v.toLowerCase().includes(q))
-                    );
-                    if (categoryMatch || matchedElements.length > 0) {
-                      return { row, matchedElements: categoryMatch ? row.elements : matchedElements, categoryMatch };
-                    }
-                    return null;
-                  })
-                  .filter(Boolean) as { row: typeof schedule.categories[0]; matchedElements: typeof schedule.categories[0]["elements"]; categoryMatch: boolean }[];
+                const rows = (schedule.scheduleRows ?? []).filter(r =>
+                  !q || [r.category, r.family, r.type].some(v => v.toLowerCase().includes(q))
+                );
+
+                let lastCategory = "";
+                let rowNum = 0;
 
                 return (
                   <>
                     {q && (
                       <p className="text-xs text-gray-400 mb-2">
-                        {filtered.length === 0
-                          ? "No results found"
-                          : `${filtered.length} categor${filtered.length === 1 ? "y" : "ies"} matched`}
+                        {rows.length === 0 ? "No results found" : `${rows.length} row${rows.length === 1 ? "" : "s"} matched`}
                       </p>
                     )}
                     <div className="rounded-xl border border-gray-200 overflow-x-auto bg-white">
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="bg-gray-50 border-b border-gray-200">
-                            <th className="text-left px-5 py-4 font-bold text-gray-500 text-sm w-12">#</th>
-                            <th className="text-left px-5 py-4 font-bold text-gray-500 text-sm">Category</th>
-                            <th className="text-right px-5 py-4 font-bold text-gray-500 text-sm w-24">Count</th>
-                            <th className="text-left px-5 py-4 font-bold text-gray-500 text-sm">Families</th>
-                            <th className="text-left px-5 py-4 font-bold text-gray-500 text-sm">Types</th>
-                            <th className="text-left px-5 py-4 font-bold text-gray-500 text-sm">Level(s)</th>
-                            <th className="w-10" />
+                            <th className="text-left px-5 py-3 font-bold text-gray-500 text-xs uppercase tracking-wide w-12">#</th>
+                            <th className="text-left px-5 py-3 font-bold text-gray-500 text-xs uppercase tracking-wide">Category</th>
+                            <th className="text-left px-5 py-3 font-bold text-gray-500 text-xs uppercase tracking-wide">Family</th>
+                            <th className="text-left px-5 py-3 font-bold text-gray-500 text-xs uppercase tracking-wide">Type</th>
+                            <th className="text-right px-5 py-3 font-bold text-gray-500 text-xs uppercase tracking-wide w-28">Instance</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                          {filtered.map(({ row, matchedElements, categoryMatch }, i) => {
-                            const isExpanded = expandedCategory === row.category || (!categoryMatch && matchedElements.length > 0 && !!q);
+                          {rows.map((r, i) => {
+                            const isNewCategory = r.category !== lastCategory;
+                            lastCategory = r.category;
+                            rowNum++;
                             return (
-                              <React.Fragment key={row.category}>
-                                <tr
-                                  onClick={() => setExpandedCategory(isExpanded && categoryMatch ? null : row.category)}
-                                  className="hover:bg-blue-50 transition-colors cursor-pointer select-none"
-                                >
-                                  <td className="px-5 py-4 text-gray-400 text-sm">{i + 1}</td>
-                                  <td className="px-5 py-4 font-semibold text-gray-900 text-base">{row.category}</td>
-                                  <td className="px-5 py-4 text-right font-bold text-blue-700 text-base">
-                                    {!categoryMatch && q
-                                      ? <><span className="text-blue-700">{matchedElements.length}</span><span className="text-gray-300 text-xs font-normal ml-1">/ {row.count}</span></>
-                                      : row.count.toLocaleString()}
-                                  </td>
-                                  <td className="px-5 py-4 text-gray-500 text-sm max-w-xs truncate">{row.families}</td>
-                                  <td className="px-5 py-4 text-gray-500 text-sm max-w-xs truncate">{row.types}</td>
-                                  <td className="px-5 py-4 text-gray-500 text-sm">{row.levels}</td>
-                                  <td className="px-4 py-4 text-gray-400">
-                                    <svg className={`h-4 w-4 transition-transform ${isExpanded ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                                    </svg>
-                                  </td>
-                                </tr>
-                                {isExpanded && (
-                                  <tr key={`${row.category}-expanded`}>
-                                    <td colSpan={7} className="p-0 bg-blue-50 border-b border-blue-100">
-                                      <div className="px-6 py-3">
-                                        <p className="text-xs font-semibold text-blue-700 mb-2">
-                                          Elements in {row.category}
-                                          {!q && row.count > 200 && <span className="text-blue-400 font-normal ml-1">(showing first 200 of {row.count.toLocaleString()})</span>}
-                                          {q && !categoryMatch && <span className="text-blue-400 font-normal ml-1">({matchedElements.length} matching "{search}")</span>}
-                                        </p>
-                                        <div className="overflow-x-auto rounded-lg border border-blue-200 bg-white">
-                                          <table className="w-full text-xs">
-                                            <thead>
-                                              <tr className="bg-blue-100 border-b border-blue-200">
-                                                <th className="text-left px-3 py-2 font-semibold text-blue-700 w-8">#</th>
-                                                <th className="text-left px-3 py-2 font-semibold text-blue-700">Name</th>
-                                                <th className="text-left px-3 py-2 font-semibold text-blue-700">Family</th>
-                                                <th className="text-left px-3 py-2 font-semibold text-blue-700">Type</th>
-                                                <th className="text-left px-3 py-2 font-semibold text-blue-700">Level</th>
-                                              </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-blue-50">
-                                              {matchedElements.map((el, j) => (
-                                                <tr key={el.id || j} className="hover:bg-blue-50 transition-colors">
-                                                  <td className="px-3 py-1.5 text-gray-400">{j + 1}</td>
-                                                  <td className="px-3 py-1.5 text-gray-800 font-medium max-w-xs truncate">{el.name}</td>
-                                                  <td className="px-3 py-1.5 text-gray-500 max-w-xs truncate">{el.family}</td>
-                                                  <td className="px-3 py-1.5 text-gray-500 max-w-xs truncate">{el.type}</td>
-                                                  <td className="px-3 py-1.5 text-gray-500">{el.level}</td>
-                                                </tr>
-                                              ))}
-                                            </tbody>
-                                          </table>
-                                        </div>
-                                      </div>
-                                    </td>
+                              <React.Fragment key={i}>
+                                {isNewCategory && (
+                                  <tr className="bg-blue-50 border-t-2 border-blue-100">
+                                    <td colSpan={5} className="px-5 py-2 text-sm font-bold text-blue-700">{r.category}</td>
                                   </tr>
                                 )}
+                                <tr className="hover:bg-gray-50 transition-colors">
+                                  <td className="px-5 py-3 text-gray-300 text-xs">{rowNum}</td>
+                                  <td className="px-5 py-3 text-gray-400 text-sm"></td>
+                                  <td className="px-5 py-3 text-gray-700 text-sm">{r.family}</td>
+                                  <td className="px-5 py-3 text-gray-700 text-sm">{r.type}</td>
+                                  <td className="px-5 py-3 text-right font-bold text-blue-600 text-sm">{r.instances.toLocaleString()}</td>
+                                </tr>
                               </React.Fragment>
                             );
                           })}
-                          {filtered.length === 0 && (
-                            <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400 text-sm">
+                          {rows.length === 0 && (
+                            <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400 text-sm">
                               {q ? `No results for "${search}"` : "No supported Revit categories found in this model"}
                             </td></tr>
                           )}

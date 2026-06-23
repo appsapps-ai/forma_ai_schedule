@@ -1,4 +1,4 @@
-import { CategoryRow, ElementRow, ScheduleResult } from "@/types/schedule";
+import { CategoryRow, ElementRow, ScheduleResult, ScheduleRow } from "@/types/schedule";
 
 export const COMMON_REVIT_CATEGORIES = [
   // Architecture / General
@@ -276,6 +276,23 @@ export function buildCategorySummary(
       elements: item.elements,
     }));
 
+  // Build Category > Family > Type breakdown with instance counts
+  const ftMap: Record<string, ScheduleRow> = {};
+  for (const item of Object.values(categoryMap)) {
+    for (const el of item.elements) {
+      const family = el.family !== "—" ? el.family : "-";
+      const type = el.type !== "—" ? el.type : "-";
+      const key = `${item.category}||${family}||${type}`;
+      if (!ftMap[key]) ftMap[key] = { category: item.category, family, type, instances: 0 };
+      ftMap[key].instances++;
+    }
+  }
+  const scheduleRows: ScheduleRow[] = Object.values(ftMap).sort((a, b) => {
+    if (a.category !== b.category) return a.category.localeCompare(b.category);
+    if (a.family !== b.family) return a.family.localeCompare(b.family);
+    return a.type.localeCompare(b.type);
+  });
+
   return {
     projectId,
     modelUrn,
@@ -284,5 +301,6 @@ export function buildCategorySummary(
     totalCategoriesFound: rows.length,
     uncategorizedElements: unknownCount,
     categories: rows,
+    scheduleRows,
   };
 }
