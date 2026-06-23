@@ -72,7 +72,7 @@ export default function ScheduleCharts({ categories }: Props) {
                             <YAxis tick={{ fontSize: 11, fill: "#6b7280" }} allowDecimals={false} />
                             <Tooltip
                                 contentStyle={{ borderRadius: 12, border: "1px solid #e5e7eb", fontSize: 13 }}
-                                formatter={(v: number) => [v.toLocaleString(), "Elements"]}
+                                formatter={(v) => [(v as number).toLocaleString(), "Elements"]}
                             />
                             <Bar dataKey="count" radius={[6, 6, 0, 0]} maxBarSize={56}>
                                 {data.map((entry, i) => (
@@ -98,8 +98,8 @@ export default function ScheduleCharts({ categories }: Props) {
                                 outerRadius={120}
                                 innerRadius={52}
                                 paddingAngle={2}
-                                label={({ name, percent }) =>
-                                    percent > 0.04 ? `${(percent * 100).toFixed(0)}%` : ""
+                                label={({ percent }) =>
+                                    (percent ?? 0) > 0.04 ? `${((percent ?? 0) * 100).toFixed(0)}%` : ""
                                 }
                                 labelLine={false}
                             >
@@ -109,7 +109,7 @@ export default function ScheduleCharts({ categories }: Props) {
                             </Pie>
                             <Tooltip
                                 contentStyle={{ borderRadius: 12, border: "1px solid #e5e7eb", fontSize: 13 }}
-                                formatter={(v: number) => [v.toLocaleString(), "Elements"]}
+                                formatter={(v) => [(v as number).toLocaleString(), "Elements"]}
                             />
                             <Legend
                                 iconType="circle"
