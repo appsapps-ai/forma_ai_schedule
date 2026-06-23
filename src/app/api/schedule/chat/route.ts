@@ -45,11 +45,17 @@ ${scheduleRowsSummary || "(regenerate schedule to see breakdown)"}`;
       parts: [{ text: m.content }],
     }));
 
-    const stream = await ai.models.generateContentStream({
-      model: "gemini-2.5-flash",
-      config: { systemInstruction },
-      contents,
-    });
+    let stream;
+    try {
+      stream = await ai.models.generateContentStream({
+        model: "gemini-2.0-flash",
+        config: { systemInstruction },
+        contents,
+      });
+    } catch (e: any) {
+      const msg = parseGeminiError(e);
+      return new Response(msg, { status: 200, headers: { "Content-Type": "text/plain; charset=utf-8" } });
+    }
 
     const encoder = new TextEncoder();
     const readable = new ReadableStream({
@@ -60,7 +66,7 @@ ${scheduleRowsSummary || "(regenerate schedule to see breakdown)"}`;
             if (text) controller.enqueue(encoder.encode(text));
           }
         } catch (e: any) {
-          controller.enqueue(encoder.encode(`\n[Error: ${e.message}]`));
+          controller.enqueue(encoder.encode(parseGeminiError(e)));
         } finally {
           controller.close();
         }
@@ -72,6 +78,22 @@ ${scheduleRowsSummary || "(regenerate schedule to see breakdown)"}`;
     });
   } catch (e: any) {
     console.error("Chat error:", e);
-    return new Response(e.message || "Chat failed", { status: 500 });
+    return new Response(parseGeminiError(e), { status: 500 });
+  }
+}
+
+function parseGeminiError(e: any): string {
+  const msg: string = e?.message || String(e);
+  if (msg.includes("429") || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("Too Many Requests")) {
+    return "⚠️ Gemini API quota exceeded. Please wait 30–60 seconds and try again.";
+  }
+  if (msg.includes("401") || msg.includes("API_KEY")) {
+    return "⚠️ Invalid Gemini API key. Check your GOOGLE_AI_API_KEY in Vercel settings.";
+  }
+  try {
+    const json = JSON.parse(msg);
+    return `⚠️ ${json?.error?.message || msg}`;
+  } catch {
+    return `⚠️ ${msg}`;
   }
 }
