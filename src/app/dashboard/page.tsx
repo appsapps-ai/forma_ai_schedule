@@ -214,8 +214,11 @@ export default function DashboardPage() {
                   ) : items.map(item => (
                     <div
                       key={item.id}
-                      onClick={() => item.type === "Folder" ? openFolder(item) : undefined}
-                      className={`flex items-center gap-4 px-6 py-4 border-b border-gray-100 last:border-0 transition-colors ${item.type === "Folder" ? "hover:bg-gray-50 cursor-pointer" : ""}`}
+                      onClick={() => {
+                        if (item.type === "Folder") openFolder(item);
+                        else if (item.type === "File" && item.modelUrn) setPreviewItem(item);
+                      }}
+                      className={`flex items-center gap-4 px-6 py-4 border-b border-gray-100 last:border-0 transition-colors hover:bg-gray-50 ${item.type === "Folder" || (item.type === "File" && item.modelUrn) ? "cursor-pointer" : ""}`}
                     >
                       {item.type === "Folder" ? (
                         <svg className="h-6 w-6 text-amber-400 shrink-0" fill="currentColor" viewBox="0 0 20 20">
@@ -227,14 +230,6 @@ export default function DashboardPage() {
                         </svg>
                       )}
                       <span className="text-base text-gray-800 flex-1 truncate font-medium">{item.name}</span>
-                      {item.type === "File" && item.modelUrn && (
-                        <button
-                          onClick={() => setPreviewItem(item)}
-                          className="shrink-0 rounded-xl bg-blue-600 px-5 py-2 text-sm font-bold text-white hover:bg-blue-700 transition-colors"
-                        >
-                          Generate Schedule
-                        </button>
-                      )}
                       {item.type === "File" && !item.modelUrn && (
                         <span className="text-sm text-gray-300 shrink-0 italic">No URN</span>
                       )}
