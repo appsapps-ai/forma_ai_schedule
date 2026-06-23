@@ -248,9 +248,6 @@ function ScheduleContent() {
                 </div>
               </div>
 
-              {/* Charts */}
-              <ScheduleCharts categories={schedule.categories} />
-
               {/* Table */}
               {(() => {
                 const q = search.trim().toLowerCase();
@@ -367,6 +364,13 @@ function ScheduleContent() {
                   </>
                 );
               })()}
+
+              {/* Charts */}
+              {schedule.categories.length > 0 && (
+                <div className="mt-6">
+                  <ScheduleCharts categories={schedule.categories} />
+                </div>
+              )}
             </>
           )}
         </main>
