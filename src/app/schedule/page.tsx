@@ -46,7 +46,10 @@ function ScheduleContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ projectId, modelUrn }),
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.error || `Server error ${res.status}`);
+      }
       setSchedule(await res.json());
     } catch (e: any) {
       setGenError(e.message || "Failed to generate schedule");
