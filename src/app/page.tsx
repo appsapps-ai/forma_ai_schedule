@@ -1,37 +1,100 @@
 export default function HomePage() {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center min-h-screen bg-gradient-to-br from-blue-950 via-blue-900 to-indigo-900">
-      <div className="text-center px-6 max-w-xl">
-        <div className="mb-6 flex justify-center">
-          <div className="rounded-2xl bg-white/10 p-4 backdrop-blur">
-            <svg className="h-12 w-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+    <div className="min-h-screen bg-white flex flex-col">
+      {/* Nav */}
+      <nav className="border-b border-gray-100 px-8 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="rounded-lg bg-blue-600 p-1.5">
+            <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
             </svg>
           </div>
+          <span className="font-semibold text-gray-900">Forma AI Schedule</span>
+        </div>
+        <a
+          href="/api/auth/login"
+          className="rounded-lg border border-blue-600 px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 transition-colors"
+        >
+          Sign in
+        </a>
+      </nav>
+
+      {/* Hero */}
+      <section className="flex-1 flex flex-col items-center justify-center px-6 py-20 text-center">
+        <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 border border-blue-100 px-4 py-1.5 text-xs font-medium text-blue-600 mb-8">
+          <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
+          Powered by Gemini AI · Autodesk APS
         </div>
 
-        <h1 className="text-4xl font-bold text-white tracking-tight mb-3">
-          Forma AI Schedule
+        <h1 className="text-5xl font-bold text-gray-900 tracking-tight mb-5 leading-tight max-w-2xl">
+          BIM Schedule Generation,{" "}
+          <span className="text-blue-600">Powered by AI</span>
         </h1>
-        <p className="text-blue-200 text-lg mb-10 leading-relaxed">
-          AI-powered BIM schedule generator. Connect your Autodesk ACC or Forma model,
-          extract Revit element categories, and generate intelligent schedule tables instantly.
+
+        <p className="text-lg text-gray-500 mb-10 max-w-xl leading-relaxed">
+          Connect your Autodesk Construction Cloud models, extract Revit element
+          categories, and generate intelligent schedule tables instantly.
         </p>
 
         <a
           href="/api/auth/login"
-          className="inline-flex items-center gap-3 rounded-xl bg-white px-8 py-4 text-base font-semibold text-blue-900 shadow-lg hover:bg-blue-50 transition-colors"
+          className="inline-flex items-center gap-3 rounded-xl bg-blue-600 px-8 py-4 text-base font-semibold text-white shadow-md shadow-blue-100 hover:bg-blue-700 transition-colors"
         >
           <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/>
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z" />
           </svg>
           Sign in with Autodesk
         </a>
 
-        <p className="mt-6 text-blue-300 text-sm">
-          Requires an Autodesk Construction Cloud or Forma account
+        <p className="mt-4 text-sm text-gray-400">
+          Requires an Autodesk Construction Cloud account
         </p>
-      </div>
+
+        {/* Feature cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mt-20 max-w-3xl w-full text-left">
+          {[
+            {
+              icon: (
+                <svg className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
+                </svg>
+              ),
+              title: "Browse ACC Models",
+              desc: "Navigate your ACC projects and select any Revit model for analysis.",
+            },
+            {
+              icon: (
+                <svg className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" />
+                </svg>
+              ),
+              title: "Auto-Generate Schedules",
+              desc: "Extract all Revit categories with family, type, and level breakdown.",
+            },
+            {
+              icon: (
+                <svg className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                </svg>
+              ),
+              title: "Ask AI Anything",
+              desc: "Chat with Gemini AI about your model — counts, categories, and insights.",
+            },
+          ].map((f) => (
+            <div key={f.title} className="rounded-2xl border border-gray-100 p-5 hover:border-blue-100 hover:bg-blue-50/30 transition-colors">
+              <div className="mb-3 inline-flex rounded-lg bg-blue-50 p-2.5">{f.icon}</div>
+              <h3 className="font-semibold text-gray-900 mb-1.5 text-sm">{f.title}</h3>
+              <p className="text-xs text-gray-500 leading-relaxed">{f.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="border-t border-gray-100 px-8 py-4 flex items-center justify-between text-xs text-gray-400">
+        <span>Forma AI Schedule</span>
+        <span>Reliant Design Solutions</span>
+      </footer>
     </div>
   );
 }

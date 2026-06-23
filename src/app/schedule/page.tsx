@@ -114,24 +114,29 @@ function ScheduleContent() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen bg-white">
       {/* Header */}
-      <header className="bg-blue-900 text-white px-6 py-4 flex items-center justify-between shadow">
+      <header className="border-b border-gray-200 px-6 py-3.5 flex items-center justify-between bg-white">
         <div className="flex items-center gap-3">
-          <button onClick={() => router.push("/dashboard")} className="text-blue-200 hover:text-white mr-1">
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <button
+            onClick={() => router.push("/dashboard")}
+            className="rounded-lg p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors mr-1"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
             </svg>
           </button>
-          <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6z" />
-          </svg>
+          <div className="rounded-lg bg-blue-600 p-1.5">
+            <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6z" />
+            </svg>
+          </div>
           <div>
-            <p className="font-semibold text-base leading-tight">Forma AI Schedule</p>
-            <p className="text-blue-300 text-xs truncate max-w-xs">{modelName}</p>
+            <p className="font-semibold text-gray-900 text-sm leading-tight">Forma AI Schedule</p>
+            <p className="text-gray-400 text-xs truncate max-w-xs">{modelName}</p>
           </div>
         </div>
-        <a href="/api/auth/logout" className="text-sm text-blue-200 hover:text-white">Sign out</a>
+        <a href="/api/auth/logout" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">Sign out</a>
       </header>
 
       <div className="flex flex-1 overflow-hidden">
@@ -157,25 +162,30 @@ function ScheduleContent() {
           {schedule && !generating && (
             <>
               {/* Stats row */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
                 {[
-                  { label: "Elements Scanned", value: schedule.totalElementsScanned.toLocaleString() },
-                  { label: "Categorized", value: schedule.totalCategorizedElements.toLocaleString() },
-                  { label: "Categories Found", value: schedule.totalCategoriesFound },
-                  { label: "Uncategorized", value: schedule.uncategorizedElements.toLocaleString() },
+                  { label: "Elements Scanned", value: schedule.totalElementsScanned.toLocaleString(), color: "text-gray-900" },
+                  { label: "Categorized", value: schedule.totalCategorizedElements.toLocaleString(), color: "text-blue-600" },
+                  { label: "Categories Found", value: schedule.totalCategoriesFound, color: "text-blue-600" },
+                  { label: "Uncategorized", value: schedule.uncategorizedElements.toLocaleString(), color: "text-gray-400" },
                 ].map(s => (
-                  <div key={s.label} className="rounded-xl bg-white border border-gray-200 px-4 py-3">
-                    <p className="text-2xl font-bold text-blue-900">{s.value}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">{s.label}</p>
+                  <div key={s.label} className="rounded-xl border border-gray-200 px-4 py-3.5 bg-white hover:border-blue-200 transition-colors">
+                    <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{s.label}</p>
                   </div>
                 ))}
               </div>
 
               {/* AI Summary */}
               {schedule.aiSummary && (
-                <div className="rounded-xl bg-blue-50 border border-blue-200 px-5 py-4 mb-6">
-                  <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-2">AI Summary</p>
-                  <p className="text-sm text-blue-900 leading-relaxed">{schedule.aiSummary}</p>
+                <div className="rounded-xl bg-blue-50 border border-blue-100 px-5 py-4 mb-6 flex gap-3">
+                  <svg className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                  </svg>
+                  <div>
+                    <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-1">AI Summary</p>
+                    <p className="text-sm text-blue-900 leading-relaxed">{schedule.aiSummary}</p>
+                  </div>
                 </div>
               )}
 
@@ -294,34 +304,41 @@ function ScheduleContent() {
         </main>
 
         {/* AI Chat panel */}
-        <aside className="w-80 border-l border-gray-200 bg-white flex flex-col">
-          <div className="px-4 py-3 border-b border-gray-100">
-            <p className="text-sm font-semibold text-gray-900">Ask AI about this model</p>
-            <p className="text-xs text-gray-400 mt-0.5">Powered by Gemini</p>
+        <aside className="w-80 border-l border-gray-200 bg-gray-50 flex flex-col">
+          <div className="px-4 py-3.5 border-b border-gray-200 bg-white flex items-center gap-2">
+            <svg className="h-4 w-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+            </svg>
+            <div>
+              <p className="text-sm font-semibold text-gray-900 leading-tight">Ask AI</p>
+              <p className="text-xs text-gray-400">Powered by Gemini</p>
+            </div>
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
             {messages.length === 0 && (
-              <div className="text-xs text-gray-400 text-center py-8">
-                Ask anything about the model schedule — element counts, categories, levels, and more.
+              <div className="text-xs text-gray-400 text-center py-10 px-4 leading-relaxed">
+                Ask anything about this model — element counts, categories, levels, and more.
               </div>
             )}
             {messages.map((msg, i) => (
               <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                <div className={`max-w-[90%] rounded-xl px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap ${
-                  msg.role === "user" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-800"
+                <div className={`max-w-[88%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed whitespace-pre-wrap ${
+                  msg.role === "user"
+                    ? "bg-blue-600 text-white rounded-br-sm"
+                    : "bg-white border border-gray-200 text-gray-800 rounded-bl-sm shadow-sm"
                 }`}>
-                  {msg.content || (chatLoading && i === messages.length - 1 ? <span className="animate-pulse">…</span> : "")}
+                  {msg.content || (chatLoading && i === messages.length - 1 ? <span className="animate-pulse text-gray-400">…</span> : "")}
                 </div>
               </div>
             ))}
             <div ref={chatEndRef} />
           </div>
 
-          <div className="p-3 border-t border-gray-100">
+          <div className="p-3 border-t border-gray-200 bg-white">
             <div className="flex gap-2">
               <input
-                className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
                 placeholder={schedule ? "Ask about this model…" : "Generate schedule first…"}
                 value={chatInput}
                 disabled={!schedule || chatLoading}
@@ -331,7 +348,7 @@ function ScheduleContent() {
               <button
                 onClick={sendChat}
                 disabled={!schedule || chatLoading || !chatInput.trim()}
-                className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-40 transition-colors"
+                className="rounded-xl bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-40 transition-colors"
               >
                 Send
               </button>
