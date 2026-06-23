@@ -1,31 +1,41 @@
 import { CategoryRow, ElementRow, ScheduleResult } from "@/types/schedule";
 
 export const COMMON_REVIT_CATEGORIES = [
-  "Air Terminals","Analytical Beams","Analytical Braces","Analytical Columns",
-  "Analytical Floors","Analytical Foundation Slabs","Analytical Isolated Foundations",
-  "Analytical Links","Analytical Nodes","Analytical Spaces","Analytical Walls",
-  "Areas","Assemblies","Cable Tray Fittings","Cable Trays","Casework","Ceilings",
-  "Columns","Communication Devices","Conduit Fittings","Conduits","Curtain Panels",
-  "Curtain Systems","Curtain Wall Mullions","Data Devices","Detail Items","Doors",
-  "Duct Accessories","Duct Fittings","Duct Insulations","Duct Linings",
-  "Duct Placeholders","Duct Systems","Ducts","Electrical Circuits",
-  "Electrical Equipment","Electrical Fixtures","Entourage","Fire Alarm Devices",
-  "Flex Ducts","Flex Pipes","Floors","Food Service Equipment","Furniture",
-  "Furniture Systems","Generic Models","Grids","Hardscape","HVAC Zones","Levels",
-  "Lighting Devices","Lighting Fixtures","Mass","Mass Floors","Mechanical Equipment",
-  "Medical Equipment","MEP Fabrication Containment","MEP Fabrication Ductwork",
-  "MEP Fabrication Hangers","MEP Fabrication Pipework","Nurse Call Devices",
-  "Parking","Parts","Pipe Accessories","Pipe Fittings","Pipe Insulations",
-  "Pipe Placeholders","Pipe Segments","Pipe Systems","Pipes","Planting",
-  "Plumbing Fixtures","Project Information","Railings","Ramps","Roads","Roofs",
-  "Rooms","Security Devices","Shaft Openings","Signage","Site","Spaces",
-  "Specialty Equipment","Sprinklers","Stairs","Structural Area Reinforcement",
-  "Structural Beam Systems","Structural Columns","Structural Connections",
-  "Structural Fabric Areas","Structural Fabric Reinforcement","Structural Foundations",
-  "Structural Framing","Structural Internal Loads","Structural Path Reinforcement",
-  "Structural Rebar","Structural Rebar Couplers","Structural Stiffeners",
-  "Structural Tendons","Structural Trusses","Telephone Devices",
-  "Temporary Structures","Topography","Vertical Circulation","Walls","Windows","Wires",
+  // Architecture / General
+  "Areas","Assemblies","Casework","Ceilings","Columns","Curtain Panels",
+  "Curtain Systems","Curtain Wall Mullions","Detail Items","Doors","Entourage",
+  "Floors","Food Service Equipment","Furniture","Furniture Systems","Generic Models",
+  "Grids","Hardscape","Levels","Mass","Mass Floors","Parking","Parts","Planting",
+  "Project Information","Railings","Ramps","Roads","Roofs","Rooms","Shaft Openings",
+  "Signage","Site","Stairs","Temporary Structures","Topography",
+  "Vertical Circulation","Walls","Windows",
+  // Mechanical / HVAC
+  "Air Terminals","Duct Accessories","Duct Fittings","Duct Insulations",
+  "Duct Linings","Duct Placeholders","Duct Systems","Ducts","Flex Ducts",
+  "HVAC Zones","Mechanical Equipment","MEP Fabrication Containment",
+  "MEP Fabrication Ductwork","MEP Fabrication Hangers","MEP Fabrication Pipework",
+  "Spaces",
+  // Plumbing / Fire Protection
+  "Flex Pipes","Pipe Accessories","Pipe Fittings","Pipe Insulations",
+  "Pipe Placeholders","Pipe Segments","Pipe Systems","Pipes","Plumbing Fixtures",
+  "Sprinklers",
+  // Electrical / Low Voltage
+  "Cable Tray Fittings","Cable Trays","Communication Devices","Conduit Fittings",
+  "Conduits","Data Devices","Electrical Circuits","Electrical Equipment",
+  "Electrical Fixtures","Fire Alarm Devices","Lighting Devices","Lighting Fixtures",
+  "Nurse Call Devices","Security Devices","Telephone Devices","Wires",
+  // Structural
+  "Structural Area Reinforcement","Structural Beam Systems","Structural Columns",
+  "Structural Connections","Structural Fabric Areas","Structural Fabric Reinforcement",
+  "Structural Foundations","Structural Framing","Structural Internal Loads",
+  "Structural Path Reinforcement","Structural Rebar","Structural Rebar Couplers",
+  "Structural Stiffeners","Structural Tendons","Structural Trusses",
+  // Analytical
+  "Analytical Beams","Analytical Braces","Analytical Columns","Analytical Floors",
+  "Analytical Foundation Slabs","Analytical Isolated Foundations","Analytical Links",
+  "Analytical Nodes","Analytical Spaces","Analytical Walls",
+  // Specialised
+  "Medical Equipment","Specialty Equipment",
 ];
 
 const BUILT_IN_CATEGORY_MAP: Record<string, string> = {
@@ -170,9 +180,11 @@ function findFlatProperty(flat: Record<string, any>, names: string[]): string | 
 }
 
 function guessCategoryFromText(element: any, flat: Record<string, any>): string {
-  const parts = [element.name || "", element.externalId || "", String(element.objectid || "")];
-  for (const [, value] of Object.entries(flat)) parts.push(String(value));
-  const text = parts.join(" ").toLowerCase();
+  // Only use element name and type/family fields — never all property values.
+  // Using all values causes false positives: a Sprinkler with a "Level" property
+  // would match "Levels" before matching "Sprinklers".
+  const typeFields = findFlatProperty(flat, ["Type Name","Family Name","Family and Type","Type","Family"]);
+  const text = [element.name || "", typeFields || ""].join(" ").toLowerCase();
   for (const [category, keywords] of CATEGORY_KEYWORDS) {
     if (keywords.some(kw => text.includes(kw))) return category;
   }
