@@ -241,7 +241,17 @@ export function buildCategorySummary(
 
     if (!isSupportedCategory(category)) { unknownCount++; continue; }
 
-    const family = findFlatProperty(flat, ["Family","Family Name","Family and Type","LcRevitData.Family","Item.Family","族"]) || "Unknown Family";
+    // APS doesn't expose a "Family" property for system families (Pipes, Ducts, Walls, etc.)
+    // Fall back to the element name stripped of the Revit object ID suffix [12345]
+    const elementBaseName = element.name
+      ? cleanText(element.name).replace(/\s*\[\d+\]$/, "").trim()
+      : null;
+    const family =
+      findFlatProperty(flat, [
+        "Family","Family Name","Family and Type",
+        "LcRevitData.Family","Item.Family","族",
+        "Object Name","Assembly Description",
+      ]) || elementBaseName || "Unknown Family";
     const type = findFlatProperty(flat, ["Type","Type Name","Family and Type","LcRevitData.Type","Item.Type","Name","类型"]) || element.name || "Unknown Type";
     const level = findFlatProperty(flat, ["Level","Base Level","Reference Level","Schedule Level","LcRevitData.Level","Item.Level","标高"]) || "Unknown Level";
 
@@ -280,8 +290,8 @@ export function buildCategorySummary(
   const ftMap: Record<string, ScheduleRow> = {};
   for (const item of Object.values(categoryMap)) {
     for (const el of item.elements) {
-      const family = el.family !== "—" ? el.family : "-";
-      const type = el.type !== "—" ? el.type : "-";
+      const family = el.family && el.family !== "—" ? el.family : item.category;
+      const type = el.type && el.type !== "—" ? el.type : "-";
       const key = `${item.category}||${family}||${type}`;
       if (!ftMap[key]) ftMap[key] = { category: item.category, family, type, instances: 0 };
       ftMap[key].instances++;
