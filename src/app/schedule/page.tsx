@@ -72,7 +72,14 @@ function ScheduleContent() {
       const res = await fetch("/api/schedule/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: [...messages, userMsg], schedule }),
+        body: JSON.stringify({
+          messages: [...messages, userMsg],
+          // Strip elements arrays — too large to send; server only needs summary fields
+          schedule: {
+            ...schedule,
+            categories: schedule.categories.map(({ elements: _e, ...rest }) => rest),
+          },
+        }),
       });
       if (!res.ok) throw new Error(await res.text());
 
