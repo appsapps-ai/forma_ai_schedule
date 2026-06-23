@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { Hub, Project, FolderItem } from "@/types/aps";
+
+const ModelViewer = dynamic(() => import("@/components/ModelViewer"), { ssr: false });
 
 type Breadcrumb = { label: string; folderId?: string };
 
@@ -242,79 +245,58 @@ export default function DashboardPage() {
         </main>
       </div>
 
-      {/* Preview Modal */}
+      {/* 3D Model Preview Modal */}
       {previewItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg mx-6 overflow-hidden">
-            {/* Modal header */}
-            <div className="px-8 py-6 border-b border-gray-100">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="rounded-xl bg-blue-50 p-3">
-                    <svg className="h-7 w-7 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold text-gray-900">Generate Schedule</h2>
-                    <p className="text-sm text-gray-400 mt-0.5">Review model details before proceeding</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setPreviewItem(null)}
-                  className="rounded-lg p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-                >
-                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-6">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-6xl h-[85vh] flex flex-col overflow-hidden">
+            {/* Header */}
+            <div className="px-8 py-5 border-b border-gray-100 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="rounded-xl bg-blue-50 p-2.5">
+                  <svg className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" />
                   </svg>
-                </button>
-              </div>
-            </div>
-
-            {/* Model details */}
-            <div className="px-8 py-6 space-y-4">
-              <div className="rounded-2xl bg-gray-50 border border-gray-100 p-5 space-y-3">
-                <div className="flex items-start gap-3">
-                  <span className="text-sm font-semibold text-gray-400 w-24 shrink-0 pt-0.5">Model</span>
-                  <span className="text-base font-semibold text-gray-900 break-all">{previewItem.name}</span>
                 </div>
-                <div className="flex items-start gap-3">
-                  <span className="text-sm font-semibold text-gray-400 w-24 shrink-0 pt-0.5">Project</span>
-                  <span className="text-base text-gray-700">{selectedProject?.name}</span>
-                </div>
-                <div className="flex items-start gap-3">
-                  <span className="text-sm font-semibold text-gray-400 w-24 shrink-0 pt-0.5">Model URN</span>
-                  <span className="text-xs text-gray-400 font-mono break-all leading-relaxed">{previewItem.modelUrn}</span>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900 truncate max-w-xl">{previewItem.name}</h2>
+                  <p className="text-sm text-gray-400">{selectedProject?.name}</p>
                 </div>
               </div>
-
-              <div className="rounded-2xl bg-blue-50 border border-blue-100 px-5 py-4 flex gap-3">
-                <svg className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
-                </svg>
-                <p className="text-sm text-blue-800 leading-relaxed">
-                  This will scan all elements in the model and extract Revit categories, families, types, and levels. Large models may take a moment.
-                </p>
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="px-8 py-5 border-t border-gray-100 flex gap-3 justify-end">
               <button
                 onClick={() => setPreviewItem(null)}
-                className="rounded-xl border border-gray-200 px-6 py-3 text-base font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+                className="rounded-xl p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors ml-4 shrink-0"
               >
-                Cancel
-              </button>
-              <button
-                onClick={() => { openSchedule(previewItem); setPreviewItem(null); }}
-                className="rounded-xl bg-blue-600 px-8 py-3 text-base font-bold text-white hover:bg-blue-700 transition-colors flex items-center gap-2"
-              >
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 0l6.75-6.75M20.25 12l-6.75 6.75" />
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
-                Run Schedule
               </button>
+            </div>
+
+            {/* Viewer */}
+            <div className="flex-1 p-4 min-h-0">
+              <ModelViewer urn={previewItem.modelUrn!} />
+            </div>
+
+            {/* Footer */}
+            <div className="px-8 py-5 border-t border-gray-100 flex items-center justify-between shrink-0">
+              <p className="text-sm text-gray-400">Review the model above, then generate the AI schedule.</p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setPreviewItem(null)}
+                  className="rounded-xl border border-gray-200 px-6 py-3 text-base font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => { openSchedule(previewItem); setPreviewItem(null); }}
+                  className="rounded-xl bg-blue-600 px-8 py-3 text-base font-bold text-white hover:bg-blue-700 transition-colors flex items-center gap-2"
+                >
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 0l6.75-6.75M20.25 12l-6.75 6.75" />
+                  </svg>
+                  Generate Schedule
+                </button>
+              </div>
             </div>
           </div>
         </div>
