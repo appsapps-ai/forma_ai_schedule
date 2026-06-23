@@ -94,33 +94,16 @@ export async function getModelProperties(modelUrn: string, token: string): Promi
     metadataList[0];
 
   // Fetch without forceget — uses APS cached translation (much faster for large models)
-  const all: any[] = [];
-  const PAGE = 200;
-  let offset = 0;
+  const url = `${APS_BASE}/modelderivative/v2/designdata/${modelUrn}/metadata/${selected.guid}/properties`;
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+  });
 
-  while (true) {
-    const url = `${APS_BASE}/modelderivative/v2/designdata/${modelUrn}/metadata/${selected.guid}/properties?limit=${PAGE}&offset=${offset}`;
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-    });
-
-    if (res.status === 202) {
-      // APS is still processing — treat as not-ready
-      throw new Error("202: Model properties are still being prepared by Autodesk. Please try again in a minute.");
-    }
-    if (!res.ok) throw new Error(`Properties fetch failed [${res.status}]: ${await res.text()}`);
-
-    const json = await res.json();
-    const page: any[] = json?.data?.collection || [];
-    all.push(...page);
-
-    // If we got a full page, there may be more
-    if (page.length < PAGE) break;
-    offset += PAGE;
-
-    // Safety cap at 5000 elements to avoid timeouts on extremely large models
-    if (all.length >= 5000) break;
+  if (res.status === 202) {
+    throw new Error("202: Model properties are still being prepared by Autodesk. Please try again in a minute.");
   }
+  if (!res.ok) throw new Error(`Properties fetch failed [${res.status}]: ${await res.text()}`);
 
-  return all;
+  const json = await res.json();
+  return json?.data?.collection || [];
 }
