@@ -84,7 +84,7 @@ export async function getModelProperties(modelUrn: string, token: string): Promi
     `${APS_BASE}/modelderivative/v2/designdata/${modelUrn}/metadata`,
     { headers: { Authorization: `Bearer ${token}`, Accept: "application/json" } }
   );
-  if (!metaRes.ok) throw new Error(`Metadata fetch failed: ${await metaRes.text()}`);
+  if (!metaRes.ok) throw new Error(`Metadata fetch failed [${metaRes.status}]: ${await metaRes.text()}`);
   const metaJson = await metaRes.json();
   const metadataList: any[] = metaJson?.data?.metadata || [];
   if (!metadataList.length) throw new Error("No metadata found. Ensure the model is translated.");
@@ -93,11 +93,34 @@ export async function getModelProperties(modelUrn: string, token: string): Promi
     metadataList.find((m: any) => String(m.role || "").toLowerCase() === "3d") ||
     metadataList[0];
 
-  const propsRes = await fetch(
-    `${APS_BASE}/modelderivative/v2/designdata/${modelUrn}/metadata/${selected.guid}/properties?forceget=true`,
-    { headers: { Authorization: `Bearer ${token}`, Accept: "application/json" } }
-  );
-  if (!propsRes.ok) throw new Error(`Properties fetch failed: ${await propsRes.text()}`);
-  const propsJson = await propsRes.json();
-  return propsJson?.data?.collection || [];
+  // Fetch without forceget — uses APS cached translation (much faster for large models)
+  const all: any[] = [];
+  const PAGE = 200;
+  let offset = 0;
+
+  while (true) {
+    const url = `${APS_BASE}/modelderivative/v2/designdata/${modelUrn}/metadata/${selected.guid}/properties?limit=${PAGE}&offset=${offset}`;
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+    });
+
+    if (res.status === 202) {
+      // APS is still processing — treat as not-ready
+      throw new Error("202: Model properties are still being prepared by Autodesk. Please try again in a minute.");
+    }
+    if (!res.ok) throw new Error(`Properties fetch failed [${res.status}]: ${await res.text()}`);
+
+    const json = await res.json();
+    const page: any[] = json?.data?.collection || [];
+    all.push(...page);
+
+    // If we got a full page, there may be more
+    if (page.length < PAGE) break;
+    offset += PAGE;
+
+    // Safety cap at 5000 elements to avoid timeouts on extremely large models
+    if (all.length >= 5000) break;
+  }
+
+  return all;
 }
