@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { getModelProperties } from "@/lib/aps-data";
 import { buildCategorySummary } from "@/lib/schedule";
-import { GoogleGenAI } from "@google/genai";
+import Anthropic from "@anthropic-ai/sdk";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_AI_API_KEY! });
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
 
 export const maxDuration = 60;
 
@@ -51,9 +51,12 @@ export async function POST(req: NextRequest) {
       .join(", ");
 
     try {
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: `You are a BIM analyst. Summarize the following Revit model schedule in 3-4 concise sentences for an architect or project manager. Focus on what disciplines are present, the dominant element types, and any notable observations.
+      const response = await anthropic.messages.create({
+        model: "claude-opus-4-8",
+        max_tokens: 512,
+        messages: [{
+          role: "user",
+          content: `You are a BIM analyst. Summarize the following Revit model schedule in 3-4 concise sentences for an architect or project manager. Focus on what disciplines are present, the dominant element types, and any notable observations.
 
 Model statistics:
 - Total elements scanned: ${result.totalElementsScanned}
@@ -61,8 +64,10 @@ Model statistics:
 - Categories found: ${result.totalCategoriesFound}
 - Uncategorized: ${result.uncategorizedElements}
 - Top categories: ${topCategories}`,
+        }],
       });
-      result.aiSummary = response.text ?? "";
+      const textBlock = response.content.find(b => b.type === "text");
+      result.aiSummary = textBlock?.text ?? "";
     } catch {
       result.aiSummary = "";
     }

@@ -23,7 +23,7 @@ export default function HomePage() {
       <section className="flex-1 flex flex-col items-center justify-center px-8 py-24 text-center">
         <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 border border-blue-100 px-5 py-2 text-sm font-medium text-blue-600 mb-10">
           <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
-          Powered by Gemini AI · Autodesk APS
+          Powered by Claude AI · Autodesk APS
         </div>
 
         <h1 className="text-6xl font-bold text-gray-900 tracking-tight mb-6 leading-tight max-w-3xl">
@@ -78,7 +78,7 @@ export default function HomePage() {
                 </svg>
               ),
               title: "Ask AI Anything",
-              desc: "Chat with Gemini AI about your model — counts, categories, and insights.",
+              desc: "Chat with Claude AI about your model — counts, categories, and insights.",
             },
           ].map((f) => (
             <div key={f.title} className="rounded-2xl border border-gray-100 p-7 hover:border-blue-200 hover:bg-blue-50/30 transition-colors">

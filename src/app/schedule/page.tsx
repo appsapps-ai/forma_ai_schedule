@@ -317,7 +317,7 @@ function ScheduleContent() {
             </svg>
             <div>
               <p className="text-base font-bold text-gray-900 leading-tight">Ask AI</p>
-              <p className="text-sm text-gray-400">Powered by Gemini</p>
+              <p className="text-sm text-gray-400">Powered by Claude</p>
             </div>
           </div>
 

@@ -1,9 +1,9 @@
 import { NextRequest } from "next/server";
 import { getSession } from "@/lib/session";
-import { GoogleGenAI } from "@google/genai";
+import Anthropic from "@anthropic-ai/sdk";
 import { ScheduleResult, ChatMessage } from "@/types/schedule";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_AI_API_KEY! });
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
 
 export const maxDuration = 60;
 
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
       .map(r => `  ${r.category} | ${r.family} | ${r.type} | ${r.instances} instances`)
       .join("\n");
 
-    const systemInstruction = `You are a BIM schedule assistant for Forma AI Schedule. Answer questions about the Revit model schedule below. Be concise and specific.
+    const system = `You are a BIM schedule assistant for Forma AI Schedule. Answer questions about the Revit model schedule below. Be concise and specific.
 
 Model Statistics:
 - Total elements scanned: ${schedule.totalElementsScanned}
@@ -40,20 +40,21 @@ ${categorySummary}
 Schedule Breakdown (Category | Family | Type | Instances):
 ${scheduleRowsSummary || "(regenerate schedule to see breakdown)"}`;
 
-    const contents = messages.map(m => ({
-      role: m.role === "assistant" ? "model" : "user",
-      parts: [{ text: m.content }],
+    const anthropicMessages = messages.map(m => ({
+      role: (m.role === "assistant" ? "assistant" : "user") as "assistant" | "user",
+      content: m.content,
     }));
 
     let stream;
     try {
-      stream = await ai.models.generateContentStream({
-        model: "gemini-2.0-flash",
-        config: { systemInstruction },
-        contents,
+      stream = anthropic.messages.stream({
+        model: "claude-opus-4-8",
+        max_tokens: 2048,
+        system,
+        messages: anthropicMessages,
       });
     } catch (e: any) {
-      const msg = parseGeminiError(e);
+      const msg = parseClaudeError(e);
       return new Response(msg, { status: 200, headers: { "Content-Type": "text/plain; charset=utf-8" } });
     }
 
@@ -61,12 +62,10 @@ ${scheduleRowsSummary || "(regenerate schedule to see breakdown)"}`;
     const readable = new ReadableStream({
       async start(controller) {
         try {
-          for await (const chunk of stream) {
-            const text = chunk.text;
-            if (text) controller.enqueue(encoder.encode(text));
-          }
+          stream.on("text", (text) => controller.enqueue(encoder.encode(text)));
+          await stream.finalMessage();
         } catch (e: any) {
-          controller.enqueue(encoder.encode(parseGeminiError(e)));
+          controller.enqueue(encoder.encode(parseClaudeError(e)));
         } finally {
           controller.close();
         }
@@ -78,22 +77,20 @@ ${scheduleRowsSummary || "(regenerate schedule to see breakdown)"}`;
     });
   } catch (e: any) {
     console.error("Chat error:", e);
-    return new Response(parseGeminiError(e), { status: 500 });
+    return new Response(parseClaudeError(e), { status: 500 });
   }
 }
 
-function parseGeminiError(e: any): string {
+function parseClaudeError(e: any): string {
+  if (e instanceof Anthropic.RateLimitError) {
+    return "⚠️ Claude API rate limit exceeded. Please wait a moment and try again.";
+  }
+  if (e instanceof Anthropic.AuthenticationError) {
+    return "⚠️ Invalid Anthropic API key. Check your ANTHROPIC_API_KEY in Vercel settings.";
+  }
+  if (e instanceof Anthropic.APIError) {
+    return `⚠️ ${e.message}`;
+  }
   const msg: string = e?.message || String(e);
-  if (msg.includes("429") || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("Too Many Requests")) {
-    return "⚠️ Gemini API quota exceeded. Please wait 30–60 seconds and try again.";
-  }
-  if (msg.includes("401") || msg.includes("API_KEY")) {
-    return "⚠️ Invalid Gemini API key. Check your GOOGLE_AI_API_KEY in Vercel settings.";
-  }
-  try {
-    const json = JSON.parse(msg);
-    return `⚠️ ${json?.error?.message || msg}`;
-  } catch {
-    return `⚠️ ${msg}`;
-  }
+  return `⚠️ ${msg}`;
 }
