@@ -232,7 +232,7 @@ export function getUnclassifiedNames(properties: any[]): string[] {
     const familyPart = stripped.includes(" : ") ? stripped.split(" : ")[0].trim() : stripped;
     names.add(familyPart);
   }
-  return Array.from(names).slice(0, 150); // cap to keep Claude prompt manageable
+  return Array.from(names).slice(0, 400); // cap to keep Claude prompt manageable
 }
 
 export function buildCategorySummary(

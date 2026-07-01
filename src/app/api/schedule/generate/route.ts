@@ -6,7 +6,7 @@ import Anthropic from "@anthropic-ai/sdk";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 export async function POST(req: NextRequest) {
   try {
@@ -46,14 +46,15 @@ export async function POST(req: NextRequest) {
     // First pass — code-based classification
     let result = buildCategorySummary(properties, projectId, modelUrn);
 
-    // If there are uncategorized elements, ask Claude to classify them
-    if (result.uncategorizedElements > 0) {
-      try {
-        const unknownNames = getUnclassifiedNames(properties);
-        if (unknownNames.length > 0) {
-          const classifyResponse = await anthropic.messages.create({
+    // AI classification (for unknowns) + AI summary run in parallel
+    const unknownNames = result.uncategorizedElements > 0 ? getUnclassifiedNames(properties) : [];
+
+    const [aiMap, aiSummaryText] = await Promise.all([
+      // Classify unknown element names with Claude
+      unknownNames.length > 0
+        ? anthropic.messages.create({
             model: "claude-opus-4-8",
-            max_tokens: 1024,
+            max_tokens: 2048,
             messages: [{
               role: "user",
               content: `You are a Revit BIM expert. Classify each element family name into the correct Revit category.
@@ -64,27 +65,15 @@ Use "Unknown" if you cannot determine the category.
 Element names to classify:
 ${unknownNames.map(n => `- "${n}"`).join("\n")}`,
             }],
-          });
-          const text = classifyResponse.content.find(b => b.type === "text")?.text ?? "";
-          const jsonMatch = text.match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-            const aiMap: Record<string, string> = JSON.parse(jsonMatch[0]);
-            // Second pass — rebuild with AI-provided categories
-            result = buildCategorySummary(properties, projectId, modelUrn, aiMap);
-          }
-        }
-      } catch {
-        // AI classification failed — continue with first-pass result
-      }
-    }
+          }).then(r => {
+            const text = r.content.find(b => b.type === "text")?.text ?? "";
+            const m = text.match(/\{[\s\S]*\}/);
+            return m ? JSON.parse(m[0]) as Record<string, string> : null;
+          }).catch(() => null)
+        : Promise.resolve(null),
 
-    const topCategories = result.categories
-      .slice(0, 10)
-      .map(r => `${r.category} (${r.count})`)
-      .join(", ");
-
-    try {
-      const response = await anthropic.messages.create({
+      // Generate AI summary (based on first-pass counts — close enough)
+      anthropic.messages.create({
         model: "claude-opus-4-8",
         max_tokens: 512,
         messages: [{
@@ -96,14 +85,16 @@ Model statistics:
 - Categorized elements: ${result.totalCategorizedElements}
 - Categories found: ${result.totalCategoriesFound}
 - Uncategorized: ${result.uncategorizedElements}
-- Top categories: ${topCategories}`,
+- Top categories: ${result.categories.slice(0, 10).map(r => `${r.category} (${r.count})`).join(", ")}`,
         }],
-      });
-      const textBlock = response.content.find(b => b.type === "text");
-      result.aiSummary = textBlock?.text ?? "";
-    } catch {
-      result.aiSummary = "";
+      }).then(r => r.content.find(b => b.type === "text")?.text ?? "").catch(() => ""),
+    ]);
+
+    // Second pass — rebuild using Claude's classifications if we got any
+    if (aiMap) {
+      result = buildCategorySummary(properties, projectId, modelUrn, aiMap);
     }
+    result.aiSummary = aiSummaryText;
 
     return NextResponse.json(result);
   } catch (e: any) {

@@ -145,6 +145,27 @@ export async function searchProjectFiles(
   return results.flat();
 }
 
+async function fetchPropertiesForGuid(modelUrn: string, guid: string, token: string): Promise<any[]> {
+  const url = `${APS_BASE}/modelderivative/v2/designdata/${modelUrn}/metadata/${guid}/properties`;
+  // Retry up to 4 times on 202 (APS still preparing the derivative)
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+    });
+    if (res.status === 202) {
+      if (attempt < 3) {
+        await new Promise(r => setTimeout(r, 4000 * (attempt + 1))); // 4s, 8s, 12s
+        continue;
+      }
+      throw new Error("202: Model properties are still being prepared by Autodesk. Please try again in a few minutes.");
+    }
+    if (!res.ok) throw new Error(`Properties fetch failed [${res.status}]: ${await res.text()}`);
+    const json = await res.json();
+    return json?.data?.collection || [];
+  }
+  return [];
+}
+
 export async function getModelProperties(modelUrn: string, token: string): Promise<any[]> {
   const metaRes = await fetch(
     `${APS_BASE}/modelderivative/v2/designdata/${modelUrn}/metadata`,
@@ -153,23 +174,38 @@ export async function getModelProperties(modelUrn: string, token: string): Promi
   if (!metaRes.ok) throw new Error(`Metadata fetch failed [${metaRes.status}]: ${await metaRes.text()}`);
   const metaJson = await metaRes.json();
   const metadataList: any[] = metaJson?.data?.metadata || [];
-  if (!metadataList.length) throw new Error("No metadata found. Ensure the model is translated.");
+  if (!metadataList.length) throw new Error("No metadata found. Ensure the model is translated in Autodesk.");
 
-  const selected =
-    metadataList.find((m: any) => String(m.role || "").toLowerCase() === "3d") ||
-    metadataList[0];
+  // Prefer 3D views; fall back to all views and use whichever returns the most elements
+  const views3d = metadataList.filter((m: any) => String(m.role || "").toLowerCase() === "3d");
+  const viewsToTry = views3d.length > 0 ? views3d : metadataList;
 
-  // Fetch without forceget — uses APS cached translation (much faster for large models)
-  const url = `${APS_BASE}/modelderivative/v2/designdata/${modelUrn}/metadata/${selected.guid}/properties`;
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-  });
+  // Fetch all candidate views in parallel, take the one with the most elements
+  const results = await Promise.allSettled(
+    viewsToTry.map((v: any) => fetchPropertiesForGuid(modelUrn, v.guid, token))
+  );
 
-  if (res.status === 202) {
-    throw new Error("202: Model properties are still being prepared by Autodesk. Please try again in a minute.");
+  let best: any[] = [];
+  for (const r of results) {
+    if (r.status === "fulfilled" && r.value.length > best.length) {
+      best = r.value;
+    }
   }
-  if (!res.ok) throw new Error(`Properties fetch failed [${res.status}]: ${await res.text()}`);
 
-  const json = await res.json();
-  return json?.data?.collection || [];
+  if (best.length === 0) {
+    // If all 3D views failed, try remaining views as last resort
+    if (views3d.length > 0 && views3d.length < metadataList.length) {
+      const remaining = metadataList.filter((m: any) => String(m.role || "").toLowerCase() !== "3d");
+      const fallbackResults = await Promise.allSettled(
+        remaining.map((v: any) => fetchPropertiesForGuid(modelUrn, v.guid, token))
+      );
+      for (const r of fallbackResults) {
+        if (r.status === "fulfilled" && r.value.length > best.length) {
+          best = r.value;
+        }
+      }
+    }
+  }
+
+  return best;
 }
