@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { Hub, Project, FolderItem } from "@/types/aps";
+import type { SearchFileResult } from "@/lib/aps-data";
 
 const ModelViewer = dynamic(() => import("@/components/ModelViewer"), { ssr: false });
 
@@ -22,6 +23,9 @@ export default function DashboardPage() {
   const [previewItem, setPreviewItem] = useState<FolderItem | null>(null);
   const [projectSearch, setProjectSearch] = useState("");
   const [fileSearch, setFileSearch] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchFileResult[] | null>(null);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     fetch("/api/auth/me")
@@ -42,6 +46,30 @@ export default function DashboardPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  // Debounced deep file search across all subfolders
+  useEffect(() => {
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    if (!fileSearch.trim() || fileSearch.length < 2 || !selectedHub || !selectedProject) {
+      setSearchResults(null);
+      return;
+    }
+    setSearchLoading(true);
+    searchTimer.current = setTimeout(async () => {
+      try {
+        const r = await fetch(
+          `/api/aps/search?hubId=${encodeURIComponent(selectedHub.id)}&projectId=${encodeURIComponent(selectedProject.id)}&query=${encodeURIComponent(fileSearch)}`
+        );
+        const d = await r.json();
+        setSearchResults(d.results ?? []);
+      } catch {
+        setSearchResults([]);
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 400);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fileSearch, selectedHub?.id, selectedProject?.id]);
+
   async function selectHub(hub: Hub) {
     setSelectedHub(hub);
     setSelectedProject(null);
@@ -60,6 +88,7 @@ export default function DashboardPage() {
     setSelectedProject(project);
     setBreadcrumbs([{ label: "Top folders" }]);
     setFileSearch("");
+    setSearchResults(null);
     setLoading(true);
     try {
       const r = await fetch(`/api/aps/folders?hubId=${selectedHub!.id}&projectId=${project.id}`);
@@ -73,6 +102,7 @@ export default function DashboardPage() {
     if (item.type !== "Folder") return;
     setBreadcrumbs(prev => [...prev, { label: item.name, folderId: item.id }]);
     setFileSearch("");
+    setSearchResults(null);
     setLoading(true);
     try {
       const r = await fetch(`/api/aps/folders?projectId=${selectedProject!.id}&folderId=${item.id}`);
@@ -87,6 +117,7 @@ export default function DashboardPage() {
     const newCrumbs = breadcrumbs.slice(0, idx + 1);
     setBreadcrumbs(newCrumbs);
     setFileSearch("");
+    setSearchResults(null);
     setLoading(true);
     try {
       const params = crumb.folderId
@@ -250,21 +281,21 @@ export default function DashboardPage() {
                 ))}
               </nav>
 
-              {/* File search */}
-              {!loading && items.length > 0 && (
+              {/* File / deep search */}
+              {!loading && (
                 <div className="relative mb-4">
                   <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803a7.5 7.5 0 0010.607 0z" />
                   </svg>
                   <input
                     type="text"
-                    placeholder="Search files and folders…"
+                    placeholder="Search all files in this project (including subfolders)…"
                     value={fileSearch}
                     onChange={e => setFileSearch(e.target.value)}
                     className="w-full rounded-xl border border-gray-200 bg-gray-50 pl-10 pr-9 py-2.5 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                   {fileSearch && (
-                    <button onClick={() => setFileSearch("")} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                    <button onClick={() => { setFileSearch(""); setSearchResults(null); }} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                       </svg>
@@ -273,16 +304,54 @@ export default function DashboardPage() {
                 </div>
               )}
 
-              {loading ? (
+              {/* Deep search results */}
+              {fileSearch.length >= 2 && (searchLoading || searchResults !== null) && (
+                <div className="mb-4">
+                  {searchLoading ? (
+                    <div className="flex items-center gap-3 text-gray-400 text-sm py-6">
+                      <div className="h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                      Searching all folders…
+                    </div>
+                  ) : searchResults!.length === 0 ? (
+                    <div className="rounded-2xl border border-gray-200 py-10 text-center">
+                      <p className="text-base text-gray-400">No files found for &ldquo;{fileSearch}&rdquo;</p>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-xs text-gray-400 mb-2">{searchResults!.length} file{searchResults!.length !== 1 ? "s" : ""} found across all folders</p>
+                      <div className="rounded-2xl border border-gray-200 overflow-hidden">
+                        {searchResults!.map(result => (
+                          <div
+                            key={result.id}
+                            onClick={() => result.modelUrn && setPreviewItem({ id: result.id, name: result.name, type: "File", modelUrn: result.modelUrn })}
+                            className={`flex items-center gap-4 px-6 py-4 border-b border-gray-100 last:border-0 transition-colors hover:bg-gray-50 ${result.modelUrn ? "cursor-pointer" : ""}`}
+                          >
+                            <svg className="h-6 w-6 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                            </svg>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-base text-gray-800 font-medium truncate">{result.name}</p>
+                              {result.path && <p className="text-xs text-gray-400 truncate mt-0.5">{result.path}</p>}
+                            </div>
+                            {!result.modelUrn && <span className="text-sm text-gray-300 italic shrink-0">No URN</span>}
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {!fileSearch && loading ? (
                 <div className="flex items-center gap-3 text-gray-400 text-base py-10">
                   <div className="h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
                   Loading contents…
                 </div>
-              ) : items.length === 0 ? (
+              ) : !fileSearch && items.length === 0 ? (
                 <div className="rounded-2xl border border-gray-200 py-16 text-center">
                   <p className="text-base text-gray-400">This folder is empty</p>
                 </div>
-              ) : (() => {
+              ) : !fileSearch && (() => {
                 const filtered = fileSearch.trim()
                   ? items.filter(f => f.name.toLowerCase().includes(fileSearch.toLowerCase()))
                   : items;

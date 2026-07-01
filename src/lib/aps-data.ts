@@ -79,6 +79,72 @@ export function toDerivativeUrn(versionId: string): string {
     .replace(/\//g, "_");
 }
 
+export interface SearchFileResult {
+  id: string;
+  name: string;
+  path: string;
+  modelUrn?: string;
+}
+
+async function searchFolderRecursive(
+  projectId: string,
+  folderId: string,
+  token: string,
+  query: string,
+  path: string,
+  depth: number
+): Promise<SearchFileResult[]> {
+  if (depth > 4) return [];
+  let json: any;
+  try {
+    json = await apsGet(`/data/v1/projects/${projectId}/folders/${folderId}/contents`, token);
+  } catch { return []; }
+
+  const items: any[] = json.data || [];
+  const subfolderJobs: Promise<SearchFileResult[]>[] = [];
+  const matchedItems: any[] = [];
+
+  for (const item of items) {
+    const name = item.attributes?.displayName || item.attributes?.name || "Unnamed";
+    if (item.type === "folders") {
+      subfolderJobs.push(
+        searchFolderRecursive(projectId, item.id, token, query, path ? `${path} / ${name}` : name, depth + 1)
+      );
+    } else if (name.toLowerCase().includes(query.toLowerCase())) {
+      matchedItems.push({ id: item.id, name });
+    }
+  }
+
+  // Fetch URNs for matched files and recurse subfolders in parallel
+  const [subResults, ...fileResults] = await Promise.all([
+    Promise.all(subfolderJobs).then(r => r.flat()),
+    ...matchedItems.map(async (f): Promise<SearchFileResult> => {
+      try {
+        const ver = await apsGet(`/data/v1/projects/${projectId}/items/${f.id}/versions`, token);
+        const latest = (ver.data || [])[0];
+        return { id: f.id, name: f.name, path, modelUrn: latest ? toDerivativeUrn(latest.id) : undefined };
+      } catch {
+        return { id: f.id, name: f.name, path };
+      }
+    }),
+  ]);
+
+  return [...(fileResults as SearchFileResult[]), ...subResults];
+}
+
+export async function searchProjectFiles(
+  hubId: string,
+  projectId: string,
+  token: string,
+  query: string
+): Promise<SearchFileResult[]> {
+  const topFolders = await getTopFolders(hubId, projectId, token);
+  const results = await Promise.all(
+    topFolders.map((f: { id: string; name: string }) => searchFolderRecursive(projectId, f.id, token, query, f.name, 0))
+  );
+  return results.flat();
+}
+
 export async function getModelProperties(modelUrn: string, token: string): Promise<any[]> {
   const metaRes = await fetch(
     `${APS_BASE}/modelderivative/v2/designdata/${modelUrn}/metadata`,
