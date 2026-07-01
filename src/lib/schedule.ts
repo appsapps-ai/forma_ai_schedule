@@ -4,17 +4,22 @@ export const COMMON_REVIT_CATEGORIES = [
   // Architecture / General
   "Areas","Assemblies","Casework","Ceilings","Columns","Curtain Panels",
   "Curtain Systems","Curtain Wall Mullions","Detail Items","Doors","Entourage",
-  "Floors","Food Service Equipment","Furniture","Furniture Systems","Generic Models",
-  "Grids","Hardscape","Levels","Mass","Mass Floors","Parking","Parts","Planting",
-  "Project Information","Railings","Ramps","Roads","Roofs","Rooms","Shaft Openings",
-  "Signage","Site","Stairs","Temporary Structures","Topography",
-  "Vertical Circulation","Walls","Windows",
+  "Fascia","Floors","Food Service Equipment","Furniture","Furniture Systems",
+  "Generic Models","Grids","Gutters","Hardscape","Levels","Mass","Mass Floors",
+  "Model Groups","Parking","Parts","Planting","Project Information",
+  "Railings","Ramps","Roads","Roofs","Rooms","Shaft Openings","Signage","Site",
+  "Slab Edges","Stairs","Temporary Structures","Topography","Toposolid",
+  "Vertical Circulation","Wall Sweeps","Walls","Windows",
+  // Stair sub-elements (Revit 2021+ component stairs)
+  "Stair Landings","Stair Runs","Stair Stringers","Stair Supports",
+  // Railing sub-elements
+  "Balusters","Handrails","Top Rails",
   // Mechanical / HVAC
   "Air Terminals","Duct Accessories","Duct Fittings","Duct Insulations",
   "Duct Linings","Duct Placeholders","Duct Systems","Ducts","Flex Ducts",
-  "HVAC Zones","Mechanical Equipment","MEP Fabrication Containment",
-  "MEP Fabrication Ductwork","MEP Fabrication Hangers","MEP Fabrication Pipework",
-  "Spaces",
+  "HVAC Zones","Hydronic Zones","Mechanical Control Devices","Mechanical Equipment",
+  "MEP Fabrication Containment","MEP Fabrication Ductwork",
+  "MEP Fabrication Hangers","MEP Fabrication Pipework","Spaces","Zone Equipment",
   // Plumbing / Fire Protection
   "Flex Pipes","Pipe Accessories","Pipe Fittings","Pipe Insulations",
   "Pipe Placeholders","Pipe Segments","Pipe Systems","Pipes","Plumbing Fixtures",
@@ -33,7 +38,7 @@ export const COMMON_REVIT_CATEGORIES = [
   // Analytical
   "Analytical Beams","Analytical Braces","Analytical Columns","Analytical Floors",
   "Analytical Foundation Slabs","Analytical Isolated Foundations","Analytical Links",
-  "Analytical Nodes","Analytical Spaces","Analytical Walls",
+  "Analytical Nodes","Analytical Pipes","Analytical Spaces","Analytical Walls",
   // Specialised
   "Medical Equipment","Specialty Equipment",
 ];
@@ -81,7 +86,18 @@ const BUILT_IN_CATEGORY_MAP: Record<string, string> = {
   OST_StructuralStiffener:"Structural Stiffeners",OST_StructuralTendons:"Structural Tendons",
   OST_StructuralTruss:"Structural Trusses",OST_TelephoneDevices:"Telephone Devices",
   OST_TemporaryStructure:"Temporary Structures",OST_Topography:"Topography",
+  OST_Toposolid:"Toposolid",
   OST_VerticalCirculation:"Vertical Circulation",OST_Walls:"Walls",OST_Windows:"Windows",OST_Wire:"Wires",
+  // Missing in original
+  OST_MechanicalControlDevices:"Mechanical Control Devices",
+  OST_StairsLandings:"Stair Landings",OST_StairsRuns:"Stair Runs",
+  OST_StairsStringerCarriage:"Stair Stringers",OST_StairsSupports:"Stair Supports",
+  OST_StairsRailingBaluster:"Balusters",OST_StairsRailingHandRail:"Handrails",
+  OST_StairsRailingTopRail:"Top Rails",
+  OST_Fascia:"Fascia",OST_Gutter:"Gutters",OST_EdgeSlab:"Slab Edges",
+  OST_WallSweeps:"Wall Sweeps",OST_IOSModelGroups:"Model Groups",
+  OST_Zone:"Hydronic Zones",OST_ZoneEquipment:"Zone Equipment",
+  OST_AnalyticalPipes:"Analytical Pipes",
 };
 
 const CATEGORY_KEYWORDS: [string, string[]][] = [
@@ -107,6 +123,7 @@ const CATEGORY_KEYWORDS: [string, string[]][] = [
   ["Lighting Devices",["lighting device","switch"]],
   ["Lighting Fixtures",["lighting fixture","light fixture","lamp","luminaire"]],
   ["Mass Floors",["mass floor"]],["Mass",["mass"]],
+  ["Mechanical Control Devices",["mechanical control","thermostat","vav","actuator","controller","bms device"]],
   ["Mechanical Equipment",["mechanical equipment","ahu","fcu","fan coil","pump","chiller"]],
   ["Medical Equipment",["medical equipment"]],
   ["MEP Fabrication Containment",["fabrication containment"]],
@@ -125,7 +142,15 @@ const CATEGORY_KEYWORDS: [string, string[]][] = [
   ["Shaft Openings",["shaft opening","shaft"]],["Signage",["signage","sign"]],
   ["Site",["site"]],["Spaces",["space","spaces"]],
   ["Specialty Equipment",["specialty equipment","speciality equipment"]],
-  ["Sprinklers",["sprinkler","sprinklers"]],["Stairs",["stair","stairs"]],
+  ["Sprinklers",["sprinkler","sprinklers"]],
+  ["Stair Landings",["stair landing"]],["Stair Runs",["stair run"]],
+  ["Stair Stringers",["stair stringer","stringer"]],["Stair Supports",["stair support"]],
+  ["Stairs",["stair","stairs"]],
+  ["Balusters",["baluster"]],["Handrails",["handrail"]],["Top Rails",["top rail"]],
+  ["Fascia",["fascia"]],["Gutters",["gutter"]],["Slab Edges",["slab edge"]],
+  ["Wall Sweeps",["wall sweep"]],["Model Groups",["model group"]],
+  ["Hydronic Zones",["hydronic zone","heating zone","cooling zone"]],
+  ["Zone Equipment",["zone equipment"]],["Toposolid",["toposolid"]],
   ["Structural Area Reinforcement",["area reinforcement"]],
   ["Structural Beam Systems",["beam system"]],["Structural Columns",["structural column"]],
   ["Structural Connections",["structural connection"]],
@@ -151,7 +176,7 @@ const VARIANT_MAP: Record<string, string> = {
   "mullions":"Curtain Wall Mullions","duct curves":"Ducts","pipe curves":"Pipes",
   "mep spaces":"Spaces","structural foundation":"Structural Foundations",
   "structural foundations":"Structural Foundations","structural frame":"Structural Framing",
-  "structural framing":"Structural Framing","toposurface":"Topography","toposolid":"Topography",
+  "structural framing":"Structural Framing","toposurface":"Topography",
 };
 
 function flattenProperties(obj: Record<string, any>, prefix = "", result: Record<string, any> = {}): Record<string, any> {
