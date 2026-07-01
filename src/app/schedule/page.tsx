@@ -170,23 +170,75 @@ function ScheduleContent() {
       });
 
       // AI summary
-      let tableStartY = 46;
+      let curY = 46;
       if (schedule.aiSummary) {
         doc.setFontSize(8);
         doc.setFont("helvetica", "italic");
         doc.setTextColor(37, 99, 235);
         const lines = doc.splitTextToSize(`AI Summary: ${schedule.aiSummary}`, pageW - 28) as string[];
-        doc.text(lines, 14, tableStartY);
-        tableStartY += lines.length * 4 + 4;
+        doc.text(lines, 14, curY);
+        curY += lines.length * 4 + 4;
       }
 
-      // Build table rows — expand schedule rows
+      // Element Distribution bar chart (top 10 categories)
+      const top10 = schedule.categories.slice(0, 10);
+      if (top10.length > 0) {
+        const maxCount = Math.max(...top10.map(c => c.count));
+        const chartH = 40;
+        const chartLeft = 14;
+        const chartRight = pageW - 14;
+        const chartW = chartRight - chartLeft;
+        const barSlotW = chartW / top10.length;
+        const barPadding = Math.max(barSlotW * 0.18, 1);
+        const chartBottom = curY + 6 + chartH;
+
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(30, 30, 30);
+        doc.text("Element Distribution", chartLeft, curY + 4);
+
+        // X-axis baseline
+        doc.setDrawColor(200, 200, 200);
+        doc.setLineWidth(0.3);
+        doc.line(chartLeft, chartBottom, chartRight, chartBottom);
+
+        top10.forEach((cat, i) => {
+          const bh = maxCount > 0 ? (cat.count / maxCount) * chartH : 0;
+          const bx = chartLeft + i * barSlotW + barPadding;
+          const bw = barSlotW - 2 * barPadding;
+          const by = chartBottom - bh;
+
+          // Alternate bar colour for readability
+          const r = i % 2 === 0 ? 37 : 99;
+          const g = i % 2 === 0 ? 99 : 130;
+          const b = i % 2 === 0 ? 235 : 200;
+          doc.setFillColor(r, g, b);
+          doc.rect(bx, by, bw, bh, "F");
+
+          // Count label above bar
+          doc.setFontSize(5.5);
+          doc.setFont("helvetica", "bold");
+          doc.setTextColor(37, 99, 235);
+          doc.text(cat.count.toLocaleString(), bx + bw / 2, by - 1, { align: "center" });
+
+          // Category label below axis
+          doc.setFontSize(5);
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(80, 80, 80);
+          const label = cat.category.length > 14 ? cat.category.slice(0, 13) + "…" : cat.category;
+          doc.text(label, bx + bw / 2, chartBottom + 4, { align: "center" });
+        });
+
+        curY = chartBottom + 10;
+      }
+
+      // Schedule table
       const rows = (schedule.scheduleRows ?? []).map((r, i) => [
         i + 1, r.category, r.family, r.type, r.instances.toLocaleString(),
       ]);
 
       autoTable(doc, {
-        startY: tableStartY,
+        startY: curY,
         head: [["#", "Category", "Family", "Type", "Instances"]],
         body: rows,
         styles: { fontSize: 8, cellPadding: 2 },
@@ -387,6 +439,48 @@ function ScheduleContent() {
                   <ScheduleCharts categories={schedule.categories} />
                 </div>
               )}
+
+              {/* Uncategorized elements */}
+              {schedule.uncategorizedElements > 0 && schedule.uncategorizedNames && schedule.uncategorizedNames.length > 0 && (
+                <div className="mt-6">
+                  <details className="rounded-xl border border-amber-200 bg-amber-50 overflow-hidden">
+                    <summary className="px-5 py-4 cursor-pointer flex items-center gap-2 select-none hover:bg-amber-100 transition-colors">
+                      <svg className="h-4 w-4 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                      </svg>
+                      <span className="text-sm font-semibold text-amber-800">
+                        {schedule.uncategorizedElements.toLocaleString()} Uncategorized Elements
+                      </span>
+                      <span className="ml-auto text-xs text-amber-600">click to expand</span>
+                    </summary>
+                    <div className="px-5 pb-4">
+                      <p className="text-xs text-amber-700 mb-3">
+                        These element families could not be matched to a standard Revit category. They may be custom families, linked elements, or elements with non-standard naming.
+                      </p>
+                      <div className="rounded-lg border border-amber-200 overflow-x-auto bg-white">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="bg-amber-50 border-b border-amber-200">
+                              <th className="text-left px-4 py-2.5 font-bold text-amber-700 text-xs uppercase tracking-wide">#</th>
+                              <th className="text-left px-4 py-2.5 font-bold text-amber-700 text-xs uppercase tracking-wide">Element Family / Name</th>
+                              <th className="text-right px-4 py-2.5 font-bold text-amber-700 text-xs uppercase tracking-wide w-28">Count</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-amber-100">
+                            {schedule.uncategorizedNames.map((item, i) => (
+                              <tr key={i} className="hover:bg-amber-50 transition-colors">
+                                <td className="px-4 py-2.5 text-amber-400 text-xs">{i + 1}</td>
+                                <td className="px-4 py-2.5 text-sm text-gray-700 font-mono">{item.name}</td>
+                                <td className="px-4 py-2.5 text-right text-sm font-bold text-amber-700">{item.count.toLocaleString()}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </details>
+                </div>
+              )}
             </>
           )}
         </main>
@@ -400,6 +494,27 @@ function ScheduleContent() {
             <div>
               <p className="text-base font-bold text-gray-900 leading-tight">Ask AI</p>
               <p className="text-sm text-gray-400">Powered by Claude</p>
+            </div>
+          </div>
+
+          {/* Input at the TOP */}
+          <div className="p-4 border-b border-gray-200 bg-white">
+            <div className="flex gap-2">
+              <input
+                className="flex-1 rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
+                placeholder={schedule ? "Ask about this model…" : "Generate schedule first…"}
+                value={chatInput}
+                disabled={!schedule || chatLoading}
+                onChange={e => setChatInput(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChat(); } }}
+              />
+              <button
+                onClick={sendChat}
+                disabled={!schedule || chatLoading || !chatInput.trim()}
+                className="rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-40 transition-colors"
+              >
+                Send
+              </button>
             </div>
           </div>
 
@@ -421,26 +536,6 @@ function ScheduleContent() {
               </div>
             ))}
             <div ref={chatEndRef} />
-          </div>
-
-          <div className="p-4 border-t border-gray-200 bg-white">
-            <div className="flex gap-2">
-              <input
-                className="flex-1 rounded-xl border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
-                placeholder={schedule ? "Ask about this model…" : "Generate schedule first…"}
-                value={chatInput}
-                disabled={!schedule || chatLoading}
-                onChange={e => setChatInput(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChat(); } }}
-              />
-              <button
-                onClick={sendChat}
-                disabled={!schedule || chatLoading || !chatInput.trim()}
-                className="rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-40 transition-colors"
-              >
-                Send
-              </button>
-            </div>
           </div>
         </aside>
       </div>

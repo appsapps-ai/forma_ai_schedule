@@ -1,4 +1,4 @@
-import { CategoryRow, ElementRow, ScheduleResult, ScheduleRow } from "@/types/schedule";
+import { CategoryRow, ElementRow, ScheduleResult, ScheduleRow, UncategorizedName } from "@/types/schedule";
 
 export const COMMON_REVIT_CATEGORIES = [
   // Architecture / General
@@ -273,6 +273,7 @@ export function buildCategorySummary(
     elements: ElementRow[];
   }> = {};
   let unknownCount = 0;
+  const unknownNameMap: Record<string, number> = {};
 
   for (const element of properties) {
     const flat = flattenProperties(element.properties || {});
@@ -295,7 +296,15 @@ export function buildCategorySummary(
       }
     }
 
-    if (!isSupportedCategory(category)) { unknownCount++; continue; }
+    if (!isSupportedCategory(category)) {
+      unknownCount++;
+      const stripped = element.name ? cleanText(element.name).replace(/\s*\[\d+\]$/, "").trim() : null;
+      if (stripped) {
+        const familyPart = stripped.includes(" : ") ? stripped.split(" : ")[0].trim() : stripped;
+        unknownNameMap[familyPart] = (unknownNameMap[familyPart] || 0) + 1;
+      }
+      continue;
+    }
 
     // APS element names follow "FamilyName : TypeName [ObjectID]" or "FamilyName [ObjectID]"
     // Parse both parts from the name as fallbacks when APS doesn't expose explicit properties.
@@ -371,6 +380,11 @@ export function buildCategorySummary(
     return a.type.localeCompare(b.type);
   });
 
+  const uncategorizedNames: UncategorizedName[] = Object.entries(unknownNameMap)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 60)
+    .map(([name, count]) => ({ name, count }));
+
   return {
     projectId,
     modelUrn,
@@ -378,6 +392,7 @@ export function buildCategorySummary(
     totalCategorizedElements: rows.reduce((s, r) => s + r.count, 0),
     totalCategoriesFound: rows.length,
     uncategorizedElements: unknownCount,
+    uncategorizedNames,
     categories: rows,
     scheduleRows,
   };

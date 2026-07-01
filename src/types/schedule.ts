@@ -23,6 +23,11 @@ export interface ScheduleRow {
   instances: number;
 }
 
+export interface UncategorizedName {
+  name: string;
+  count: number;
+}
+
 export interface ScheduleResult {
   projectId: string;
   modelUrn: string;
@@ -30,6 +35,7 @@ export interface ScheduleResult {
   totalCategorizedElements: number;
   totalCategoriesFound: number;
   uncategorizedElements: number;
+  uncategorizedNames?: UncategorizedName[];
   categories: CategoryRow[];
   scheduleRows: ScheduleRow[];
   aiSummary?: string;
