@@ -4,6 +4,8 @@ import React, { useEffect, useState, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ScheduleResult, ChatMessage } from "@/types/schedule";
 import dynamic from "next/dynamic";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 const ScheduleCharts = dynamic(() => import("@/components/ScheduleCharts"), { ssr: false });
 
@@ -23,7 +25,7 @@ function ScheduleContent() {
   const [chatLoading, setChatLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  const [exportLoading, setExportLoading] = useState<"xlsx" | "csv" | null>(null);
+  const [exportLoading, setExportLoading] = useState<"xlsx" | "csv" | "pdf" | null>(null);
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
@@ -122,6 +124,82 @@ function ScheduleContent() {
       a.download = `forma-ai-schedule.${format}`;
       a.click();
       URL.revokeObjectURL(url);
+    } finally {
+      setExportLoading(null);
+    }
+  }
+
+  function exportPDF() {
+    if (!schedule) return;
+    setExportLoading("pdf");
+    try {
+      const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+      const pageW = doc.internal.pageSize.getWidth();
+
+      // Header bar
+      doc.setFillColor(37, 99, 235);
+      doc.rect(0, 0, pageW, 18, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(13);
+      doc.setFont("helvetica", "bold");
+      doc.text("FORMA AI SCHEDULE", 14, 12);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.text(modelName, pageW / 2, 12, { align: "center" });
+      doc.text(new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }), pageW - 14, 12, { align: "right" });
+
+      // Stats row
+      const stats = [
+        { label: "Elements Scanned", value: schedule.totalElementsScanned.toLocaleString() },
+        { label: "Categorized", value: schedule.totalCategorizedElements.toLocaleString() },
+        { label: "Categories Found", value: String(schedule.totalCategoriesFound) },
+        { label: "Uncategorized", value: schedule.uncategorizedElements.toLocaleString() },
+      ];
+      const cellW = (pageW - 28) / stats.length;
+      doc.setTextColor(30, 30, 30);
+      stats.forEach((s, i) => {
+        const x = 14 + i * cellW;
+        doc.setFontSize(16);
+        doc.setFont("helvetica", "bold");
+        doc.text(s.value, x, 32);
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(120, 120, 120);
+        doc.text(s.label, x, 38);
+        doc.setTextColor(30, 30, 30);
+      });
+
+      // AI summary
+      let tableStartY = 46;
+      if (schedule.aiSummary) {
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "italic");
+        doc.setTextColor(37, 99, 235);
+        const lines = doc.splitTextToSize(`AI Summary: ${schedule.aiSummary}`, pageW - 28) as string[];
+        doc.text(lines, 14, tableStartY);
+        tableStartY += lines.length * 4 + 4;
+      }
+
+      // Build table rows — expand schedule rows
+      const rows = (schedule.scheduleRows ?? []).map((r, i) => [
+        i + 1, r.category, r.family, r.type, r.instances.toLocaleString(),
+      ]);
+
+      autoTable(doc, {
+        startY: tableStartY,
+        head: [["#", "Category", "Family", "Type", "Instances"]],
+        body: rows,
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: "bold" },
+        alternateRowStyles: { fillColor: [245, 247, 255] },
+        columnStyles: {
+          0: { cellWidth: 10, halign: "center" },
+          4: { cellWidth: 22, halign: "right" },
+        },
+        margin: { left: 14, right: 14 },
+      });
+
+      doc.save(`forma-ai-schedule.pdf`);
     } finally {
       setExportLoading(null);
     }
@@ -233,6 +311,10 @@ function ScheduleContent() {
                   <button onClick={() => exportSchedule("csv")} disabled={!!exportLoading}
                     className="flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">
                     {exportLoading === "csv" ? <span className="h-3 w-3 border border-gray-400 border-t-transparent rounded-full animate-spin" /> : "⬇"} CSV
+                  </button>
+                  <button onClick={exportPDF} disabled={!!exportLoading}
+                    className="flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 disabled:opacity-50">
+                    {exportLoading === "pdf" ? <span className="h-3 w-3 border border-red-400 border-t-transparent rounded-full animate-spin" /> : "⬇"} PDF
                   </button>
                   <button onClick={generateSchedule}
                     className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700">
