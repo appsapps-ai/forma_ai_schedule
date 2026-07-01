@@ -215,10 +215,31 @@ function cleanText(v: any): string {
   return String(v).replace(/\|/g, "/").replace(/\n/g, " ").replace(/\r/g, " ").trim();
 }
 
+/** Collect unique family/element names that the code could NOT classify. Used for AI fallback. */
+export function getUnclassifiedNames(properties: any[]): string[] {
+  const names = new Set<string>();
+  for (const element of properties) {
+    const flat = flattenProperties(element.properties || {});
+    const rawCategory =
+      findFlatProperty(flat, [
+        "Category","Revit Category","Element Category","Category Name",
+        "BuiltInCategory","Built In Category","LcRevitData.Category",
+        "LcRevitData.Element Category","Item.Category","类别",
+      ]) || guessCategoryFromText(element, flat);
+    if (isSupportedCategory(normalizeCategory(rawCategory))) continue;
+    const stripped = element.name ? cleanText(element.name).replace(/\s*\[\d+\]$/, "").trim() : null;
+    if (!stripped) continue;
+    const familyPart = stripped.includes(" : ") ? stripped.split(" : ")[0].trim() : stripped;
+    names.add(familyPart);
+  }
+  return Array.from(names).slice(0, 150); // cap to keep Claude prompt manageable
+}
+
 export function buildCategorySummary(
   properties: any[],
   projectId: string,
-  modelUrn: string
+  modelUrn: string,
+  aiCategoryMap?: Record<string, string>   // family/element name → Revit category (from Claude)
 ): ScheduleResult {
   const categoryMap: Record<string, {
     category: string; count: number;
@@ -237,7 +258,17 @@ export function buildCategorySummary(
         "LcRevitData.Element Category","Item.Category","类别",
       ]) || guessCategoryFromText(element, flat);
 
-    const category = normalizeCategory(rawCategory);
+    let category = normalizeCategory(rawCategory);
+
+    // AI fallback: if code couldn't classify, check the AI map
+    if (!isSupportedCategory(category) && aiCategoryMap) {
+      const stripped = element.name ? cleanText(element.name).replace(/\s*\[\d+\]$/, "").trim() : "";
+      const familyPart = stripped.includes(" : ") ? stripped.split(" : ")[0].trim() : stripped;
+      const aiCat = aiCategoryMap[familyPart] ?? aiCategoryMap[stripped];
+      if (aiCat && isSupportedCategory(normalizeCategory(aiCat))) {
+        category = normalizeCategory(aiCat);
+      }
+    }
 
     if (!isSupportedCategory(category)) { unknownCount++; continue; }
 

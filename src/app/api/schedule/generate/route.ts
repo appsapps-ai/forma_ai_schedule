@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { getModelProperties } from "@/lib/aps-data";
-import { buildCategorySummary } from "@/lib/schedule";
+import { buildCategorySummary, getUnclassifiedNames, COMMON_REVIT_CATEGORIES } from "@/lib/schedule";
 import Anthropic from "@anthropic-ai/sdk";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
@@ -43,7 +43,40 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const result = buildCategorySummary(properties, projectId, modelUrn);
+    // First pass — code-based classification
+    let result = buildCategorySummary(properties, projectId, modelUrn);
+
+    // If there are uncategorized elements, ask Claude to classify them
+    if (result.uncategorizedElements > 0) {
+      try {
+        const unknownNames = getUnclassifiedNames(properties);
+        if (unknownNames.length > 0) {
+          const classifyResponse = await anthropic.messages.create({
+            model: "claude-opus-4-8",
+            max_tokens: 1024,
+            messages: [{
+              role: "user",
+              content: `You are a Revit BIM expert. Classify each element family name into the correct Revit category.
+Return ONLY a JSON object with no extra text. Map each name to a category from this list:
+${COMMON_REVIT_CATEGORIES.join(", ")}
+Use "Unknown" if you cannot determine the category.
+
+Element names to classify:
+${unknownNames.map(n => `- "${n}"`).join("\n")}`,
+            }],
+          });
+          const text = classifyResponse.content.find(b => b.type === "text")?.text ?? "";
+          const jsonMatch = text.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            const aiMap: Record<string, string> = JSON.parse(jsonMatch[0]);
+            // Second pass — rebuild with AI-provided categories
+            result = buildCategorySummary(properties, projectId, modelUrn, aiMap);
+          }
+        }
+      } catch {
+        // AI classification failed — continue with first-pass result
+      }
+    }
 
     const topCategories = result.categories
       .slice(0, 10)
