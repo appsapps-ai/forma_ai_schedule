@@ -388,13 +388,16 @@ export function buildCategorySummary(
     }
 
     if (!isSupportedCategory(category)) {
-      unknownCount++;
       const stripped = element.name ? cleanText(element.name).replace(/\s*\[\d+\]$/, "").trim() : null;
-      if (stripped) {
-        const familyPart = stripped.includes(" : ") ? stripped.split(" : ")[0].trim() : stripped;
-        unknownNameMap[familyPart] = (unknownNameMap[familyPart] || 0) + 1;
+      if (!stripped) {
+        // Phantom/metadata node with no meaningful name — skip entirely
+        unknownCount++;
+        continue;
       }
-      continue;
+      // Element has a real name but couldn't be classified — track it and fall back
+      const familyPart = stripped.includes(" : ") ? stripped.split(" : ")[0].trim() : stripped;
+      unknownNameMap[familyPart] = (unknownNameMap[familyPart] || 0) + 1;
+      category = "Generic Models"; // Revit's built-in catch-all rather than losing the element
     }
 
     // APS element names follow "FamilyName : TypeName [ObjectID]" or "FamilyName [ObjectID]"

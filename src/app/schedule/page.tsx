@@ -441,7 +441,7 @@ function ScheduleContent() {
               )}
 
               {/* Uncategorized elements */}
-              {schedule.uncategorizedElements > 0 && schedule.uncategorizedNames && schedule.uncategorizedNames.length > 0 && (
+              {schedule.uncategorizedNames && schedule.uncategorizedNames.length > 0 && (
                 <div className="mt-6">
                   <details className="rounded-xl border border-amber-200 bg-amber-50 overflow-hidden">
                     <summary className="px-5 py-4 cursor-pointer flex items-center gap-2 select-none hover:bg-amber-100 transition-colors">
@@ -449,13 +449,13 @@ function ScheduleContent() {
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
                       </svg>
                       <span className="text-sm font-semibold text-amber-800">
-                        {schedule.uncategorizedElements.toLocaleString()} Uncategorized Elements
+                        {schedule.uncategorizedNames.reduce((s, n) => s + n.count, 0).toLocaleString()} Elements Placed in Generic Models (unknown category)
                       </span>
                       <span className="ml-auto text-xs text-amber-600">click to expand</span>
                     </summary>
                     <div className="px-5 pb-4">
                       <p className="text-xs text-amber-700 mb-3">
-                        These element families could not be matched to a standard Revit category. They may be custom families, linked elements, or elements with non-standard naming.
+                        These element families could not be matched to a standard Revit category. They have been placed in Generic Models in the schedule above. They may be custom families, linked elements, or elements with non-standard naming.
                       </p>
                       <div className="rounded-lg border border-amber-200 overflow-x-auto bg-white">
                         <table className="w-full text-sm">

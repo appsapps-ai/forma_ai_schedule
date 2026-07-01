@@ -46,39 +46,42 @@ export async function POST(req: NextRequest) {
     // First pass — code-based classification
     let result = buildCategorySummary(properties, projectId, modelUrn);
 
-    // AI classification (for unknowns) + AI summary run in parallel
-    const unknownNames = result.uncategorizedElements > 0 ? getUnclassifiedNames(properties) : [];
+    // AI classification for any remaining unknowns
+    const unknownNames = result.uncategorizedElements > 0 || (result.uncategorizedNames?.length ?? 0) > 0
+      ? getUnclassifiedNames(properties)
+      : [];
 
-    const [aiMap, aiSummaryText] = await Promise.all([
-      // Classify unknown element names with Claude
-      unknownNames.length > 0
-        ? anthropic.messages.create({
-            model: "claude-opus-4-8",
-            max_tokens: 2048,
-            messages: [{
-              role: "user",
-              content: `You are a Revit BIM expert. Classify each element family name into the correct Revit category.
+    if (unknownNames.length > 0) {
+      const aiMap = await anthropic.messages.create({
+        model: "claude-opus-4-8",
+        max_tokens: 2048,
+        messages: [{
+          role: "user",
+          content: `You are a Revit BIM expert. Classify each element family name into the correct Revit category.
 Return ONLY a JSON object with no extra text. Map each name to a category from this list:
 ${COMMON_REVIT_CATEGORIES.join(", ")}
-Use "Unknown" if you cannot determine the category.
+If you cannot determine the exact category, use "Generic Models" as the fallback — never return "Unknown".
 
 Element names to classify:
 ${unknownNames.map(n => `- "${n}"`).join("\n")}`,
-            }],
-          }).then(r => {
-            const text = r.content.find(b => b.type === "text")?.text ?? "";
-            const m = text.match(/\{[\s\S]*\}/);
-            return m ? JSON.parse(m[0]) as Record<string, string> : null;
-          }).catch(() => null)
-        : Promise.resolve(null),
+        }],
+      }).then(r => {
+        const text = r.content.find(b => b.type === "text")?.text ?? "";
+        const m = text.match(/\{[\s\S]*\}/);
+        return m ? JSON.parse(m[0]) as Record<string, string> : null;
+      }).catch(() => null);
 
-      // Generate AI summary (based on first-pass counts — close enough)
-      anthropic.messages.create({
-        model: "claude-opus-4-8",
-        max_tokens: 512,
-        messages: [{
-          role: "user",
-          content: `You are a BIM analyst. Summarize the following Revit model schedule in 3-4 concise sentences for an architect or project manager. Focus on what disciplines are present, the dominant element types, and any notable observations.
+      // Second pass — rebuild using Claude's classifications
+      if (aiMap) result = buildCategorySummary(properties, projectId, modelUrn, aiMap);
+    }
+
+    // Generate AI summary using FINAL (post-AI) counts so numbers are accurate
+    const aiSummaryText = await anthropic.messages.create({
+      model: "claude-opus-4-8",
+      max_tokens: 512,
+      messages: [{
+        role: "user",
+        content: `You are a BIM analyst. Summarize the following Revit model schedule in 3-4 concise sentences for an architect or project manager. Do not use any markdown formatting. Focus on what disciplines are present, the dominant element types, and any notable observations.
 
 Model statistics:
 - Total elements scanned: ${result.totalElementsScanned}
@@ -86,14 +89,9 @@ Model statistics:
 - Categories found: ${result.totalCategoriesFound}
 - Uncategorized: ${result.uncategorizedElements}
 - Top categories: ${result.categories.slice(0, 10).map(r => `${r.category} (${r.count})`).join(", ")}`,
-        }],
-      }).then(r => r.content.find(b => b.type === "text")?.text ?? "").catch(() => ""),
-    ]);
+      }],
+    }).then(r => r.content.find(b => b.type === "text")?.text ?? "").catch(() => "");
 
-    // Second pass — rebuild using Claude's classifications if we got any
-    if (aiMap) {
-      result = buildCategorySummary(properties, projectId, modelUrn, aiMap);
-    }
     result.aiSummary = aiSummaryText;
 
     return NextResponse.json(result);
