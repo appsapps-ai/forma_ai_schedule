@@ -11,12 +11,6 @@ export default function HomePage() {
           </div>
           <span className="font-bold text-gray-900 text-xl">Forma AI Schedule</span>
         </div>
-        <a
-          href="/api/auth/login"
-          className="rounded-xl border-2 border-blue-600 px-5 py-2.5 text-base font-semibold text-blue-600 hover:bg-blue-50 transition-colors"
-        >
-          Sign in
-        </a>
       </nav>
 
       {/* Hero */}
